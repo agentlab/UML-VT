@@ -1,0 +1,55 @@
+module genModelVariable
+
+
+import org.eclipse.emf.mwe.utils.Reader
+import org.eclipse.emf.mwe.utils.StandaloneSetup
+import org.eclipse.emf.mwe.utils.DirectoryCleaner
+import org.eclipse.xtend.typesystem.emf.EmfRegistryMetaModel
+import org.eclipse.xtend.check.CheckComponent
+import org.eclipse.xpand2.Generator
+import org.eclipse.xtend.expression.ResourceManagerDefaultImpl
+
+
+
+var modelUri 
+var dirSrcGen 
+var choice
+var metamodelFile
+
+
+
+Workflow {
+	/* set up EMF for standalone execution */
+	bean = StandaloneSetup { 
+		platformUri=".." 		
+		registerEcoreFile=metamodelFile
+	}
+
+	/** instantiate metamodel */
+ 	bean = EmfRegistryMetaModel : mm {
+ 		useSingleGlobalResourceSet = true
+ 	}
+ 	
+	/* load model and store it in slot 'model' */
+	component = Reader {
+		uri = modelUri
+		modelSlot = "model"
+	}
+
+	/** Clear output directory */
+
+	/* generate code */
+	component = Generator {
+
+		metaModel = mm
+		expand = choice
+		outlet = {
+			path = dirSrcGen
+			fileEncoding = "ISO-8859-1" // this is the encoding for files written the outlet
+		}
+		// configure Xpand resource encoding (check project resource setting)
+		//resourceManager = ResourceManagerDefaultImpl {
+			fileEncoding = "ISO-8859-1"
+		//}
+	}
+}

@@ -1,0 +1,170 @@
+«IMPORT GraphMetaM»
+«EXTENSION M2T::helpFunc»
+
+«DEFINE main FOR Model»
+   «EXPAND UPPAALDis FOREACH this.graph »
+
+«ENDDEFINE»
+
+«REM» 
+---------------------------------------------------------------------------------------------------------------
+	Translation into UPPAAL models from UML activities (extended by the DMOSES profile)
+	The transformation is based on a distributed strategie 
+	Input: graph (activity)
+	Output: one xml-file for each graph (activity) in the model
+---------------------------------------------------------------------------------------------------------------
+«ENDREM»
+«DEFINE UPPAALDis FOR Graph-»
+«FILE name+".xml"-»
+<?xml version="1.0" encoding="utf-8"?><!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.1//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_1.dtd'><nta>
+<declaration>// A global clock for each processing unit
+clock exeClk;
+</declaration>
+«REM» Node's behavior: invocation and execution «ENDREM»
+«EXPAND execution FOR this-»
+«EXPAND invocation FOR this-»
+«EXPAND system FOR this-»
+</nta>
+«ENDFILE»
+«ENDDEFINE»
+
+«REM» 
+----------------------------------------
+	Instatiation of the system: nodes
+----------------------------------------
+«ENDREM»
+
+«DEFINE system FOR Graph-»
+<system>
+urgent chan «FOREACH vertex.getValidVertex() AS v» «v.rName»Start «IF v==vertex.getValidVertex().last()»;«ELSE»,«ENDIF»«ENDFOREACH»
+urgent chan «FOREACH vertex.getValidVertex() AS v» «v.rName»Release «IF v==vertex.getValidVertex().last()»;«ELSE»,«ENDIF»«ENDFOREACH»
+bool «FOREACH vertex.getValidVertex() AS v» «v.rName»Busy «IF v==vertex.getValidVertex().last()»;«ELSE»,«ENDIF»«ENDFOREACH»
+
+urgent chan «FOREACH edge.getValidEdge() AS e» «e.source.rName»_out«e.source.outgoing.getValidEdge().indexOf(e)»Fire «IF e==edge.getValidEdge().last()»;«ELSE»,«ENDIF»«ENDFOREACH»
+urgent chan «FOREACH edge.getValidEdge() AS e» «e.source.rName»_out«e.source.outgoing.getValidEdge().indexOf(e)»Release «IF e==edge.getValidEdge().last()»;«ELSE»,«ENDIF»«ENDFOREACH»
+
+«FOREACH vertex.getValidVertex() AS v-»
+«v.rName»In = «IF v.rName.matches("id0")»root«ELSE»in«v.incoming.getValidEdge().size»_«v.type»«ENDIF»(«v.rName»Start, «v.rName»Release, «v.rName»Busy«FOREACH v.incoming.getValidEdge() AS e-»,«e.source.rName»_out«e.source.outgoing.getValidEdge().indexOf(e)»Fire, «e.source.rName»_out«e.source.outgoing.getValidEdge().indexOf(e)»Release«ENDFOREACH-»);
+«v.rName» = out«v.outgoing.getValidEdge().size»_«v.type» («v.rName»Start, «v.rName»Release, «v.rName»Busy «FOREACH v.outgoing.getValidEdge() AS e-»,«e.source.rName»_out«e.source.outgoing.getValidEdge().indexOf(e)»Fire, «e.source.rName»_out«e.source.outgoing.getValidEdge().indexOf(e)»Release, «e.target.rName»Busy«ENDFOREACH-»);
+
+«ENDFOREACH-»
+
+system «FOREACH vertex.getValidVertex() AS v-» «v.rName»In, «v.rName» «IF v==vertex.getValidVertex().last()»;«ELSE»,«ENDIF»«ENDFOREACH-»
+
+</system>
+
+«ENDDEFINE»
+
+
+«REM» 
+------------------------------------------------------------------------
+	Execution of the node (execution + output firing)
+	A timed automata is generated for each number of outputs
+------------------------------------------------------------------------
+«ENDREM»
+«DEFINE execution FOR Graph-»
+«setOutputList(vertex.getValidVertex().select(e|e.type.toString()=="and").select(e|e==vertex.getValidVertex().select(e|e.type.toString()=="and").select(v|v.outgoing.getValidEdge().size==e.outgoing.getValidEdge().size).first()).OutgoingSize(),vertex.getValidVertex().select(e|e.type.toString()=="or").select(e|e==vertex.getValidVertex().select(e|e.type.toString()=="or").select(v|v.outgoing.getValidEdge().size==e.outgoing.getValidEdge().size).first()).OutgoingSize())-»
+
+«FOREACH getOutAndList() AS inType» 
+«setOffset(getOutAndList().indexOf(inType)*4)-»
+<template>
+<name x="5" y="5">out«inType»_and</name>
+<parameter>urgent chan&amp; start, urgent chan&amp; realease,  bool&amp; busy«FOREACH getIncreasingList(inType.toString().asInteger()) AS o-», urgent chan&amp; fOut«o», urgent chan&amp; rOut«o», bool&amp; bOut«o»«ENDFOREACH-»</parameter>
+<declaration>int[0,«inType»] outT = 0;</declaration>
+<location id="id«getOffset()»" x="-456" y="-152"><name x="-466" y="-182">idle</name></location>
+<location id="id«getOffset()+1»" x="-456" y="-64"><name x="-432" y="-80">calculating</name><label kind="invariant" x="-432" y="-64">exeClk &lt;= 10</label></location>
+<location id="id«getOffset()+2»" x="-456" y="24"><name x="-432" y="8">firing</name><urgent/></location>
+<location id="id«getOffset()+3»" x="-456" y="144"><name x="-464" y="168">waiting</name></location>
+<init ref="id«getOffset()»"/>
+<transition><source ref="id«getOffset()»"/><target ref="id«getOffset()+1»"/><label kind="synchronisation" x="-424" y="-120">start?</label><label kind="assignment" x="-440" y="-136">exeClk:=0, busy = true</label></transition>
+<transition><source ref="id«getOffset()+2»"/><target ref="id«getOffset()»"/><label kind="guard" x="-696" y="-96">outT&gt;=«inType»</label><label kind="synchronisation" x="-704" y="-64">realease !</label><label kind="assignment" x="-712" y="-24">busy=false</label><nail x="-624" y="24"/><nail x="-624" y="-152"/></transition>
+<transition><source ref="id«getOffset()+1»"/><target ref="id«getOffset()+2»"/><label kind="guard" x="-440" y="-32">exeClk &gt;= 10</label><label kind="assignment" x="-440" y="-16">outT = 0</label></transition>
+«FOREACH getIncreasingList(inType.toString().asInteger()) AS o-»
+<transition><source ref="id«getOffset()+2»"/><target ref="id«getOffset()+3»"/><label kind="guard">outT == «o» &amp;&amp; bOut«o» == false</label><label kind="synchronisation" >fOut«o» !</label></transition>
+<transition><source ref="id«getOffset()+3»"/><target ref="id«getOffset()+2»"/><label kind="guard">outT == «o» </label><label kind="synchronisation" >rOut«o»?</label><label kind="assignment" >outT++</label></transition>
+<transition><source ref="id«getOffset()+2»"/><target ref="id«getOffset()+2»"/><label kind="guard">outT == «o» &amp;&amp; bOut«o»== true</label><label kind="synchronisation">fOut«o»!</label><label kind="assignment">outT++</label></transition>
+«ENDFOREACH-»
+</template>
+«ENDFOREACH-»
+«FOREACH getOutOrList() AS inType» 
+«setOffset(getOutAndList().size*4+getOutOrList().indexOf(inType)*4)-»
+<template>
+<name x="5" y="5">out«inType»_or</name>
+<parameter>urgent chan&amp; start, urgent chan&amp; realease,  bool&amp; busy«FOREACH getIncreasingList(inType.toString().asInteger()) AS o-», urgent chan&amp; fOut«o», urgent chan&amp; rOut«o», bool&amp; bOut«o»«ENDFOREACH-»</parameter>
+<declaration>int[0,«inType»] outT = 0;</declaration>
+<location id="id«getOffset()»" x="-456" y="-152"><name x="-466" y="-182">idle</name></location>
+<location id="id«getOffset()+1»" x="-456" y="-64"><name x="-432" y="-80">calculating</name><label kind="invariant" x="-432" y="-64">exeClk &lt;= 10</label></location>
+<location id="id«getOffset()+2»" x="-456" y="24"><name x="-432" y="8">firing</name><urgent/></location>
+<location id="id«getOffset()+3»" x="-456" y="144"><name x="-464" y="168">waiting</name></location>
+<init ref="id«getOffset()»"/>
+<transition><source ref="id«getOffset()»"/><target ref="id«getOffset()+1»"/><label kind="synchronisation" x="-424" y="-120">start?</label><label kind="assignment" x="-440" y="-136">exeClk:=0, busy = true</label></transition>
+<transition><source ref="id«getOffset()+2»"/><target ref="id«getOffset()»"/><label kind="guard" x="-696" y="-96">outT&gt;=«IF inType.toString().asInteger()==0»0«ELSE»1«ENDIF»</label><label kind="synchronisation" x="-704" y="-64">realease !</label><label kind="assignment" x="-712" y="-24">busy=false</label><nail x="-624" y="24"/><nail x="-624" y="-152"/></transition>
+<transition><source ref="id«getOffset()+1»"/><target ref="id«getOffset()+2»"/><label kind="guard" x="-440" y="-32">exeClk &gt;= 10</label><label kind="assignment" x="-440" y="-16">outT = 0</label></transition>
+«FOREACH getIncreasingList(inType.toString().asInteger()) AS o-»
+<transition><source ref="id«getOffset()+2»"/><target ref="id«getOffset()+3»"/><label kind="guard">outT == 0 &amp;&amp; bOut«o» == false</label><label kind="synchronisation" >fOut«o» !</label></transition>
+<transition><source ref="id«getOffset()+3»"/><target ref="id«getOffset()+2»"/><label kind="guard">outT == 0 </label><label kind="synchronisation" >rOut«o»?</label><label kind="assignment" >outT++</label></transition>
+<transition><source ref="id«getOffset()+2»"/><target ref="id«getOffset()+2»"/><label kind="guard">outT == 0 &amp;&amp; bOut«o»== true</label><label kind="synchronisation">fOut«o»!</label><label kind="assignment">outT++</label></transition>
+«ENDFOREACH-»
+</template>
+
+«ENDFOREACH-»
+
+«ENDDEFINE»
+
+«REM» 
+------------------------------------------------------------------------
+	Invocation of the node 
+	A timed automata is generated for each number of inputs
+------------------------------------------------------------------------
+«ENDREM»
+«DEFINE invocation FOR Graph-»«setInputList(vertex.getValidVertex().select(e|e.type.toString()=="and" && !e.rName.matches("id0")).select(e|e==vertex.getValidVertex().select(e|e.type.toString()=="and" && !e.rName.matches("id0")).select(v|v.incoming.getValidEdge().size==e.incoming.getValidEdge().size).first()).IncomingSize(), vertex.getValidVertex().select(e|e.type.toString()=="or").select(e|e==vertex.getValidVertex().select(e|e.type.toString()=="or").select(v|v.incoming.getValidEdge().size==e.incoming.getValidEdge().size).first()).IncomingSize())»
+
+«FOREACH getInAndList() AS inType» 
+«setOffset(getOutSize()*4+getInAndList().indexOf(inType)*3)-»
+<template><name>in«inType»_and</name>
+<parameter>urgent chan&amp; start, urgent chan&amp; release, bool&amp; busy«FOREACH getIncreasingList(inType.toString().asInteger()) AS i», urgent chan&amp; in«i-», urgent chan&amp; rin«i»«ENDFOREACH-»</parameter>
+<declaration>int[0,«inType»] inT = 0;
+int[0,«inType»] inExe = 0;</declaration>
+<location id="id«getOffset()»" x="-576" y="-232"><name x="-624" y="-240">idle</name></location>
+<location id="id«getOffset()+1»" x="-368" y="-232"><name x="-352" y="-240">received</name><committed/></location>
+<location id="id«getOffset()+2»" x="-144" y="-232"><name x="-112" y="-256">executing</name></location>
+<init ref="id«getOffset()»"/>
+<transition><source ref="id«getOffset()+2»"/><target ref="id«getOffset()+1»"/><label kind="synchronisation" x="-288" y="-304">release ?</label><label kind="assignment" x="-296" y="-320">inT= inT-«inType»</label><nail x="-168" y="-280"/><nail x="-344" y="-280"/></transition>
+<transition><source ref="id«getOffset()+1»"/><target ref="id«getOffset()+2»"/><label kind="guard" x="-328" y="-192">inT&gt;=«inType» &amp;&amp; busy == false</label><label kind="synchronisation" x="-280" y="-168">start!</label><nail x="-344" y="-200"/><nail x="-160" y="-200"/></transition>
+«FOREACH getIncreasingList(inType.toString().asInteger()) AS i-»
+<transition><source ref="id«getOffset()+1»"/><target ref="id«getOffset()»"/><label kind="guard" >( inT&lt;«inType» || busy == true ) &amp;&amp; inExe == «i»</label><label kind="synchronisation">rin«i»!</label></transition>
+<transition><source ref="id«getOffset()»"/><target ref="id«getOffset()+1»"/><label kind="synchronisation">in«i»?</label><label kind="assignment">inT++, inExe=«i»</label></transition>
+«ENDFOREACH-»
+</template>
+«ENDFOREACH»
+«FOREACH getInOrList() AS inType» 
+«setOffset(getOutSize()*4+getInAndList().size*3+getInOrList().indexOf(inType)*3)-»
+<template><name>in«inType»_or</name>
+<parameter>urgent chan&amp; start, urgent chan&amp; release, bool&amp; busy«FOREACH getIncreasingList(inType.toString().asInteger()) AS i», urgent chan&amp; in«i-», urgent chan&amp; rin«i»«ENDFOREACH-»</parameter>
+<declaration>int[0,«inType»] inT = 0;
+int[0,«inType»] inExe = 0;</declaration>
+<location id="id«getOffset()»" x="-576" y="-232"><name x="-624" y="-240">idle</name></location>
+<location id="id«getOffset()+1»" x="-368" y="-232"><name x="-352" y="-240">received</name><committed/></location>
+<location id="id«getOffset()+2»" x="-144" y="-232"><name x="-112" y="-256">executing</name></location>
+<init ref="id«getOffset()»"/>
+<transition><source ref="id«getOffset()+2»"/><target ref="id«getOffset()+1»"/><label kind="synchronisation" x="-288" y="-304">release ?</label><label kind="assignment" x="-296" y="-320">inT= inT-1</label><nail x="-168" y="-280"/><nail x="-344" y="-280"/></transition>
+<transition><source ref="id«getOffset()+1»"/><target ref="id«getOffset()+2»"/><label kind="guard" x="-328" y="-192">inT&gt;=1 &amp;&amp; busy == false</label><label kind="synchronisation" x="-280" y="-168">start!</label><nail x="-344" y="-200"/><nail x="-160" y="-200"/></transition>
+«FOREACH getIncreasingList(inType.toString().asInteger()) AS i-»
+<transition><source ref="id«getOffset()+1»"/><target ref="id«getOffset()»"/><label kind="guard" >( inT&lt;1 || busy == true ) &amp;&amp; inExe == «i»</label><label kind="synchronisation">rin«i»!</label></transition>
+<transition><source ref="id«getOffset()»"/><target ref="id«getOffset()+1»"/><label kind="synchronisation">in«i»?</label><label kind="assignment">inT++, inExe=«i»</label></transition>
+«ENDFOREACH-»
+</template>
+«ENDFOREACH»
+<template><name>root</name>
+<parameter>urgent chan&amp; start, urgent chan&amp; release, bool&amp; busy</parameter>
+<declaration>int inT = 0;
+int inExe = 0;</declaration>
+<location id="id«getIndexRoot()»" x="-576" y="-232"><name x="-624" y="-240">idle</name><committed/></location>
+<location id="id«getIndexRoot()+1»" x="-368" y="-232"><name x="-352" y="-240">received</name><committed/></location>
+<location id="id«getIndexRoot()+2»" x="-144" y="-232"><name x="-112" y="-256">executing</name></location>
+<init ref="id«getIndexRoot()»"/>
+<transition><source ref="id«getIndexRoot()+2»"/><target ref="id«getIndexRoot()+1»"/><label kind="synchronisation" x="-288" y="-304">release ?</label><label kind="assignment" x="-296" y="-320">inT=-1</label><nail x="-168" y="-280"/><nail x="-344" y="-280"/></transition>
+<transition><source ref="id«getIndexRoot()+1»"/><target ref="id«getIndexRoot()+2»"/><label kind="guard" x="-328" y="-192">inT&gt;=0 &amp;&amp; busy == false</label><label kind="synchronisation" x="-280" y="-168">start!</label><nail x="-344" y="-200"/><nail x="-160" y="-200"/></transition>
+<transition><source ref="id«getIndexRoot()»"/><target ref="id«getIndexRoot()+1»"/><label kind="assignment">inT=0, inExe=0</label></transition>
+</template>
+«ENDDEFINE»

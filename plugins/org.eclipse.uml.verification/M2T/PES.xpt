@@ -1,0 +1,74 @@
+«IMPORT GraphMetaM»
+«EXTENSION M2T::helpFunc»
+
+«DEFINE main FOR Model»
+   «EXPAND PES FOREACH this.graph »
+
+«ENDDEFINE»
+
+«REM» 
+---------------------------------------------------------------------------------------------------------------
+	Translation into SPIN models from UML activities (extended by the DMOSES profile)
+	The transformation is based on a distributed and flat strategie 
+	Input: graph (activity)
+	Output: one in-file for each graph (activity) in the model
+---------------------------------------------------------------------------------------------------------------
+«ENDREM»
+
+«DEFINE PES FOR Graph-»
+«FILE name + ".in"-»
+«FOREACH vertex.select(e|e.name!="") AS v-»
+#define Cid«vertex.select(e|e.name!="").indexOf(v)» «v.cycles»
+«ENDFOREACH-»
+
+CLOCKS:{x0,	x1} // x0 for urgent places, x1 for the core one
+
+CONTROL:{ «FOREACH vertex.select(e|e.name!="") AS v»
+	p«v.rName», p«v.rName»inT, p«v.rName»outT«IF vertex.select(e|e.name!="").last()!=v»,«ENDIF»«ENDFOREACH»
+}
+
+INITIALLY: x0 == 0 && x1 == 0
+
+INVARIANT:«FOREACH vertex.select(e|e.name!="") AS v»
+	p«v.rName» == 1 -> x1 <= C«v.rName»
+	p«v.rName» == 2 -> x0 <= 0 «ENDFOREACH»
+	pid0 == 0 -> x0 <= 0
+
+// The length of the input buffer is the same than the inputs
+
+
+TRANSITIONS:
+	(pid0 == 0) -> (pid0 = 1) {x1}; 
+	«FOREACH vertex.select(e|e.name!="").sortBy(e|e.rName) AS v-»
+		«IF v.type.toString()=="or"-»
+			«FOREACH v.incoming.select(e|e.getPESpriority()>=1 ) AS e-»
+	(p«v.rName» == 1 && p«v.rName»inT == «v.incoming.select(e|e.getPESpriority()>=1 ).indexOf(e)+1») -> (p«v.rName» = 2, p«v.rName»outT = 0, p«v.rName»inT = «v.incoming.select(e|e.getPESpriority()>=1 ).indexOf(e)») {x0};
+	
+			«ENDFOREACH-»
+		«ELSE-»
+	(p«v.rName» == 1 && p«v.rName»inT == «v.incoming.select(e|e.getPESpriority()>=1 ).size») -> (p«v.rName» = 2, p«v.rName»outT = 0, p«v.rName»inT = 0) {x0};
+		«ENDIF-»
+		«IF v.rName != "id0"-»
+	(p«v.rName» == 2 && p«v.rName»outT >= «v.outgoing.select(e|e.getPESpriority()>=1 ).size» && p«v.rName»inT >= «IF v.type.toString()=="or"»1«ELSE»«v.incoming.select(e|e.getPESpriority()>=1 ).size»«ENDIF» ) -> (p«v.rName» = 1) {x1};
+		«ENDIF-»
+
+		«FOREACH v.outgoing.select(e|e.getPESpriority()>=1 ) AS e-»
+			«IF e.target.type.toString()=="or"-»
+	(p«v.rName» == 2 && p«v.rName»outT == «e.getPESpriority()-1» && p«e.target.rName» == 0 && p«e.target.rName»inT == 0) -> (p«v.rName» = 3, p«e.target.rName» = 1, p«e.target.rName»inT = 1) {x1};	
+			«ELSE-»
+				«FOREACH e.target.incoming.select(e|e.getPESpriority()>=1) AS i-»
+					«IF i!= e.target.incoming.select(e|e.getPESpriority()>=1).last()-»
+	(p«v.rName» == 2 && p«v.rName»outT == «e.getPESpriority()-1» && p«e.target.rName» == 0 && p«e.target.rName»inT == «e.target.incoming.select(e|e.getPESpriority()>=1 ).indexOf(i)») -> (p«v.rName» = 2, p«v.rName»outT = «e.getPESpriority()», p«e.target.rName»inT = «e.target.incoming.select(e|e.getPESpriority()>=1 ).indexOf(i)+1») {x0};	
+					«ENDIF-»
+				«ENDFOREACH-»
+	(p«v.rName» == 2 && p«v.rName»outT == «e.getPESpriority()-1» && p«e.target.rName» == 0 && p«e.target.rName»inT == «e.target.incoming.select(e|e.getPESpriority()>=1 ).size-1») -> (p«v.rName» = 3, p«e.target.rName» = 1, p«e.target.rName»inT = «e.target.incoming.select(e|e.getPESpriority()>=1 ).size») {x1};	
+			«ENDIF-»
+    (p«v.rName» == 3 && p«v.rName»outT == «e.getPESpriority()-1» && p«e.target.rName» == 2 && p«e.target.rName»outT >= «e.target.outgoing.select(e|e.getPESpriority()>=1 ).size» && p«e.target.rName»inT < «IF e.target.type.toString()=="or"»1«ELSE»«e.target.incoming.select(e|e.getPESpriority()>=1 ).size»«ENDIF») -> (p«v.rName» = 2, p«v.rName»outT = «e.getPESpriority()», p«e.target.rName» = 0) {x0};
+			«FOREACH e.target.incoming.select(e|e.getPESpriority()>=1 ) AS i-»
+    (p«v.rName» == 2 && p«v.rName»outT == «e.getPESpriority()-1» && p«e.target.rName» != 0 && p«e.target.rName»inT == «e.target.incoming.select(e|e.getPESpriority()>=1 ).indexOf(i)») -> (p«v.rName» = 2, p«v.rName»outT = «e.getPESpriority()», p«e.target.rName»inT = «e.target.incoming.select(e|e.getPESpriority()>=1 ).indexOf(i)+1») {x0}; 
+  			«ENDFOREACH-»
+  		«ENDFOREACH»
+	«ENDFOREACH»
+
+«ENDFILE»
+«ENDDEFINE»

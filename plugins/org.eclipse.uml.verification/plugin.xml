@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+
+   <extension
+         point="org.eclipse.ui.commands">
+      <category
+            name="Verify"
+            id="org.eclipse.uml.verification.commands.verify">
+            
+      </category>
+      <command
+            name="Verify"
+            categoryId="org.eclipse.uml.verification.commands.verify"
+            id="org.eclipse.uml.verification.commands.verify">
+      </command>
+   </extension>
+ 
+      <extension
+         point="org.eclipse.ui.commands">
+      <category
+            name="Configurations"
+            id="org.eclipse.uml.verification.commands.configurations">
+      </category>
+      <command
+            name="Configurations"
+            categoryId="org.eclipse.uml.verification.commands.configurations"
+            id="org.eclipse.uml.verification.commands.configurations">
+      </command>
+   </extension>
+   
+       
+   
+     <extension
+         point="org.eclipse.ui.commands">
+      <category
+            name="UPPAAL"
+            id="org.eclipse.uml.verification.commands.uppaal">
+            
+      </category>
+      <command
+            name="UPPAAL"
+            categoryId="org.eclipse.uml.verification.commands.uppaal"
+            id="org.eclipse.uml.verification.commands.uppaal">
+      </command>
+   </extension>
+   
+    <extension
+         point="org.eclipse.ui.commands">
+      <category
+            name="SPIN"
+            id="org.eclipse.uml.verification.commands.spin">
+            
+      </category>
+      <command
+            name="SPIN"
+            categoryId="org.eclipse.uml.verification.commands.spin"
+            id="org.eclipse.uml.verification.commands.spin">
+      </command>
+   </extension>
+   
+    <extension
+         point="org.eclipse.ui.commands">
+      <category
+            name="NUSMV"
+            id="org.eclipse.uml.verification.commands.nusmv">
+            
+      </category>
+      <command
+            name="NUSMV"
+            categoryId="org.eclipse.uml.verification.commands.nusmv"
+            id="org.eclipse.uml.verification.commands.nusmv">
+      </command>
+   </extension>
+   
+    <extension
+         point="org.eclipse.ui.commands">
+      <category
+            name="PES"
+            id="org.eclipse.uml.verification.commands.pes">
+            
+      </category>
+      <command
+            name="PES"
+            categoryId="org.eclipse.uml.verification.commands.pes"
+            id="org.eclipse.uml.verification.commands.pes">
+      </command>
+   </extension>
+     
+      
+      
+     
+      
+      
+   
+   
+   
+   <extension
+         point="org.eclipse.ui.handlers">
+      <handler
+            commandId="org.eclipse.uml.verification.commands.verify"
+            class="org.eclipse.uml.verification.handlers.VerifyHandler">
+
+      </handler>
+   </extension>
+   
+      <extension
+         point="org.eclipse.ui.handlers">
+      <handler
+            commandId="org.eclipse.uml.verification.commands.configurations"
+            class="org.eclipse.uml.verification.handlers.ConfigurationsHandler">
+             
+      </handler>
+   </extension>
+   
+   <extension
+         point="org.eclipse.ui.handlers">
+      <handler
+            commandId="org.eclipse.uml.verification.commands.uppaal"
+            class="org.eclipse.uml.verification.handlers.UppaalHandler">
+         <enabledWhen>
+            <test
+                  args="uppaal"
+                  forcePluginActivation="true"
+                  property="org.eclipse.uml.verification.propertyTester1.uppaal">
+            </test>
+         </enabledWhen>
+             
+      </handler>
+   </extension>
+   <extension
+         point="org.eclipse.ui.handlers">
+      <handler
+            commandId="org.eclipse.uml.verification.commands.spin"
+            class="org.eclipse.uml.verification.handlers.SpinHandler">
+         <enabledWhen>
+            <test
+                  args="spin"
+                  forcePluginActivation="true"
+                  property="org.eclipse.uml.verification.propertyTester1.spin">
+            </test>
+         </enabledWhen>
+             
+      </handler>
+   </extension>
+   <extension
+         point="org.eclipse.ui.handlers">
+      <handler
+            commandId="org.eclipse.uml.verification.commands.nusmv"
+            class="org.eclipse.uml.verification.handlers.NusmvHandler">
+         <enabledWhen>
+            <test
+                  args="nusmv"
+                  forcePluginActivation="true"
+                  property="org.eclipse.uml.verification.propertyTester1.nusmv">
+            </test>
+         </enabledWhen>
+             
+      </handler>
+   </extension>
+   <extension
+         point="org.eclipse.ui.handlers">
+      <handler
+            commandId="org.eclipse.uml.verification.commands.pes"
+            class="org.eclipse.uml.verification.handlers.PesHandler">
+         <enabledWhen>
+            <test
+                  args="pes"
+                  forcePluginActivation="true"
+                  property="org.eclipse.uml.verification.propertyTester1.pes">
+            </test>
+         </enabledWhen>
+             
+      </handler>
+   </extension>
+   
+   
+   
+  
+   <extension
+         point="org.eclipse.ui.menus">
+      <menuContribution
+            locationURI="menu:org.eclipse.ui.main.menu?after=additions">
+         <menu
+               label="UML-VT"
+               mnemonic="M"
+               id="org.eclipse.uml.verification.menus.UMLVerification">
+            <command
+                  commandId="org.eclipse.uml.verification.commands.verify"
+                  mnemonic="S"
+                  id="org.eclipse.uml.verification.menus.verify">
+            </command>
+             <command
+                  commandId="org.eclipse.uml.verification.commands.configurations"
+                  mnemonic="T"
+                  id="org.eclipse.uml.verification.menus.configurations">
+            </command>
+            
+            <menu
+             label="Model Checkers"
+               mnemonic="Q"
+               id="org.eclipse.uml.verification.menus.modelCheckers">
+            <command
+                  commandId="org.eclipse.uml.verification.commands.spin"
+                  id="org.eclipse.uml.verification.menus.spin"
+                  mnemonic="A">
+                 
+            </command>
+            <command
+                  commandId="org.eclipse.uml.verification.commands.nusmv"
+                  id="org.eclipse.uml.verification.menus.nusmv"
+                  mnemonic="B">
+                  
+            </command>
+            <command
+                  commandId="org.eclipse.uml.verification.commands.pes"
+                  id="org.eclipse.uml.verification.menus.pes"
+                  mnemonic="C">
+                 
+            </command>
+            <command
+                  commandId="org.eclipse.uml.verification.commands.uppaal"
+                  id="org.eclipse.uml.verification.menus.upaal"
+                  mnemonic="D">
+                 
+                  
+            </command>
+            
+            </menu>
+            <visibleWhen
+                  checkEnabled="false">
+               <with
+                     variable="activeWorkbenchWindow.activePerspective">
+                  <equals
+                        value="MyPerspective">
+                  </equals>
+               </with>
+            </visibleWhen>
+            
+            
+            
+            
+            
+          </menu>  
+      </menuContribution>
+      
+      
+   </extension>
+    <extension
+         point="org.eclipse.ui.perspectives">
+      <perspective
+            class="org.eclipse.uml.verification.view.MyPerspective"
+            fixed="false"
+            icon="pictures/UML_Verification_Picture.gif"
+            id="MyPerspective"
+            name="UML-VT">
+      </perspective>
+   </extension>
+    <extension
+          point="org.eclipse.ui.views">
+       <view
+             allowMultiple="false"
+             category="category1"
+             class="org.eclipse.uml.verification.view.MyView"
+             id="view1"
+             name="Results"
+             restorable="true">
+       </view>
+       <category
+             id="category1"
+             name="verification">
+       </category>
+    </extension>
+    <extension
+          point="org.eclipse.core.expressions.propertyTesters">
+       <propertyTester
+             class="org.eclipse.uml.verification.PropertyTester1"
+             id="org.eclipse.uml.verification.propertyTester1"
+             namespace="org.eclipse.uml.verification.propertyTester1"
+             properties="uppaal,spin,nusmv,pes"
+             type="java.lang.Object">
+       </propertyTester>
+    </extension>
+    <extension
+          id="UML-VT"
+          name="UML-VT"
+          point="org.eclipse.ui.newWizards">
+       <wizard
+             category="org.eclipse.uml.verification.category"
+             class="org.eclipse.uml.verification.wizard.MyWizard"
+             icon="pictures/UML_Verification_Picture.gif"
+             id="org.eclipse.uml.verification.wizard"
+             name="Empty Project"
+             project="true">
+       </wizard>
+       <category
+             id="org.eclipse.uml.verification.category"
+             name="UML-VT">
+       </category>
+       <wizard
+             category="org.eclipse.uml.verification.category"
+             class="org.eclipse.uml.verification.wizard.ExampleProject"
+             icon="pictures/UML_Verification_Picture.gif"
+             id="org.eclipse.uml.verification.wizard1"
+             name="Example Project"
+             project="true">
+       </wizard>
+    </extension>
+   
+</plugin>

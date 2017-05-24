@@ -1,0 +1,250 @@
+-- @path GraphMetaM=/UML2Graph/input/GraphMetaM.ecore
+
+-- Module:Graph2OptGraph
+-- Function: Optmize every activity by merging connected nodes that
+-- 1. Have the same type
+-- 2. source has only one output 
+-- 3. target has only one input
+-- Inputs: A graph
+-- Outputs: A graph
+module Graph2OptGraph;
+
+create OUT: GraphMetaM from IN: GraphMetaM;
+
+-- Rule definitions
+
+---  Creates one model and fills it with a graph for each activity
+rule Model2Model{
+	from 
+		inModel:GraphMetaM!Model
+	to 
+		outModel: GraphMetaM!Model(
+			name <- inModel.name,
+			graph <-inModel.graph
+		)	
+}
+
+
+
+--- Creates a optimal graph for each input graph
+rule Graph2OptGraph{
+	from
+		graph: GraphMetaM!Graph
+	to
+		optGraph: GraphMetaM!Graph(
+			name  <- graph.name,--.debug('Activity'),
+			vertex <-graph.vertex->select(v | v.incoming.isEmpty() or ( v.name.startsWith('_Event') and v.name.endsWith('In')))
+					->collect(v | v.createOptimizedVertexes(graph)),
+			edge <- optGraph.vertex
+					->collect(v | v.createOptimizedEdges(graph,optGraph))		
+			)
+	do
+	{
+		-- Adding ID to the vertex
+		for(optVertex in GraphMetaM!Vertex.allInstances()) {
+			if (optGraph.vertex.includes(optVertex)){
+				optVertex.name <- optVertex.rName;
+				if (optVertex.name.startsWith('inPort0')) {
+					optVertex.rName <- 'id0';
+				} 
+				else {
+					thisModule.id <- thisModule.id + 1;
+					optVertex.rName <- 'id' + thisModule.id.toString();
+				}
+			}
+		}
+		
+		
+		-- Evaluation
+		optGraph.vertex->select(v | v.incoming.isEmpty() and v.outgoing.isEmpty()
+		and v.name<>'inPort0:Final:outPort0')
+		->collect(v | (v.name+'---'+v.incoming.size().toString()+'---'+v.outgoing.size().toString()).debug('Error #1:'+graph.name));
+		
+		optGraph.edge->select(e | e.source.oclIsUndefined() or e.target.oclIsUndefined())
+		->collect(e | e.name.debug('Error #2:'+graph.name));
+		
+		-- Reseting readable Mane
+		thisModule.id <- 0;
+	}
+}
+
+--- Creates a vertex that has the properties of the merged nodes
+unique lazy rule createMergedVertex {
+	from 
+		vertex: GraphMetaM!Vertex,
+		graph: GraphMetaM!Graph
+	using 
+	{
+		mergedProperties :  TupleType (name : String, rName: String, cycles : Integer) = Tuple{name = vertex.name, rName = vertex.rName, cycles = vertex.cycles};
+	}
+	to
+		optVertex: GraphMetaM!Vertex
+		(
+			type <- vertex.type	-- Type is not merged since all merged vertexes have the samet type
+		)
+	do
+	{	
+		-- Merge all possible vertexes
+		if (vertex.isMergable()) { 
+			mergedProperties <- vertex.outgoing.first().target.mergeVertex(mergedProperties);
+		}
+		
+		-- Set vertex properties with resulting properties of the merging
+		optVertex.name <- mergedProperties.name;
+		optVertex.rName <- mergedProperties.rName;
+		optVertex.cycles <- mergedProperties.cycles;	
+		
+		
+	}
+
+}
+
+
+
+--- Creates a vertex with the same properties of the incoming vertex
+unique lazy rule copyVertex {
+	from 
+		vertex: GraphMetaM!Vertex,
+		grah: GraphMetaM!Graph
+	to
+		optVertex: GraphMetaM!Vertex(
+			name <- vertex.name,
+			activity <- vertex.activity,
+			cycles <- vertex.cycles,
+			rName <- vertex.rName,
+			type <- vertex.type		
+		)
+		
+	do
+	{
+		
+		
+		
+	}
+}
+
+
+ lazy rule Edge {
+	from 
+		
+		sourceVertex: GraphMetaM!Vertex,
+		targetVertex: GraphMetaM!Vertex,
+		priorityValue:Integer
+	to
+		edgeGraph: GraphMetaM!Edge(
+			source <- sourceVertex,
+			target <- targetVertex,
+			localPriority <- priorityValue,
+			name <- edgeGraph.source.name+':'+edgeGraph.target.name
+		)
+}
+ 
+ 
+-- +++++++++++++++++++++++++++++++
+-- 			HELPERS
+-- +++++++++++++++++++++++++++++++
+
+--- ID for vertex used for rName
+helper def : id : Integer = 0;
+
+--- Get a vertex is named as the input name
+helper context GraphMetaM!Graph def: getNonOptVertex (name: String) : GraphMetaM!Vertex =
+	self.vertex->select(v | v.name = name).first();
+
+--- Get the optimazed vertex correspoding to the input name
+--- The vertex's name has either the same name as the input name 
+--- or starts with the input name followed by ';'
+helper context GraphMetaM!Graph def: getOptVertex (name: String) : GraphMetaM!Vertex =
+	self.vertex->select(v | v.name.startsWith(name+';') or v.name=name).first();
+
+--- Get the name of the last merged vertex
+helper context GraphMetaM!Vertex def: getTailVertexName () : String =
+	if self.name.indexOf(';') < 0 then
+		-- In not a merged vertex
+		self.name	
+	else 
+		-- Last merged vertex
+		self.name.split(';').last()
+	endif;
+
+
+--- Creates and return a set of optimized edges that are connected to the input (source) vertex 
+helper context GraphMetaM!Vertex def: createOptimizedEdges(graph: GraphMetaM!Graph, optgraph: GraphMetaM!Graph ) : Set(GraphMetaM!Edge) =
+	graph.getNonOptVertex(self.getTailVertexName()).outgoing
+	->collect(e | thisModule.Edge(self, optgraph.getOptVertex(e.target.name), e.localPriority));
+
+
+--- ID for vertex used for rName
+helper def : optimizedVertex : Set(String) = Set{};
+
+helper context GraphMetaM!Vertex def: alreadyOptimized() : Boolean =
+	if  self.incoming.isEmpty() or ( self.name.startsWith('_Event') and self.name.endsWith('In')) then
+		true
+	else
+		false
+	endif;
+		
+	
+
+
+--- Creates and return a set of optimized vertex that are connected to the input (source) vertex 
+helper context GraphMetaM!Vertex def: createOptimizedVertexes(graph: GraphMetaM!Graph ) : Set(GraphMetaM!Vertex) =
+	
+--	HERE: If the vertex already exist I can stop the recusion
+--	      Take a look what happens with the edges
+
+		if self.isMergable() then
+			-- A new vertex is created with the merged properties of all possible mergable vertexes
+			-- and the function "createOptimizedVertexes" is called with the target vertexes of last merged vertex
+			let mergedVertex : GraphMetaM!Vertex = thisModule.createMergedVertex(self, graph) in
+				Set {mergedVertex}	
+				->union(
+				graph.vertex->select(v | v.name = (mergedVertex.name.split(';').last())).first()
+				.outgoing
+				->select(o | o.target.incoming.indexOf(o)=1 and (not o.target.alreadyOptimized()) )
+				->collect(o | o.target.createOptimizedVertexes(graph))
+				)
+		else
+			-- A new vertex is created with the same properties of the input vertex
+			-- and the function "createOptimizedVertexes" is called with the target vertexes of the input vertex
+			Set {thisModule.copyVertex(self, graph)}
+			->union(
+				self.outgoing
+				->select(o | o.target.incoming.indexOf(o)=1 and ( not o.target.alreadyOptimized()))
+				->collect(o | o.target.createOptimizedVertexes(graph)
+				))
+		endif;
+
+		
+
+		
+--- Return properties (in a Tuple) that add the vertex properties to the input properties	
+helper context GraphMetaM!Vertex def: mergeVertex (mergedProperties: TupleType ( cycles : Integer, name : String, rName : String)) : TupleType (name : String, cycles : Integer, rName : String) =
+	if (self.isMergable()) then 
+		 self.outgoing.first().target.mergeVertex(Tuple{name = mergedProperties.name + ';' + self.name, rName = mergedProperties.rName + ';' + self.rName, cycles = mergedProperties.cycles + self.cycles})
+	else
+		Tuple{
+			name = mergedProperties.name + ';' + self.name,
+			rName = mergedProperties.rName + ';' + self.rName,
+			cycles = mergedProperties.cycles + self.cycles
+			}
+	endif;
+		
+	
+	
+--- Returns true if the input vertex can be merged with its target vertex
+--- A vertex is mergable if the input vertex has only one output, its target has only one input and both vertexes have the same type
+helper context GraphMetaM!Vertex def: isMergable() : Boolean =
+	if (self.outgoing.isEmpty() or  self.activity<>OclUndefined or self.name.startsWith('_Event') or   self.outgoing.size() > 1) then
+		false
+	else
+		let target : GraphMetaM!Vertex = self.outgoing.first().target in
+			if (target.incoming.size() > 1 or target.activity<>OclUndefined or target.name.startsWith('_Event') or target.type<>self.type ) then
+				false
+			else
+				true
+			endif
+	endif;
+
+
+		

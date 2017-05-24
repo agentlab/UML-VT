@@ -1,0 +1,30 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: org.eclipse.uml.verification.tl
+Bundle-Vendor: My Company
+Bundle-Version: 1.0.0.qualifier
+Bundle-SymbolicName: org.eclipse.uml.verification.tl; singleton:=true
+Bundle-ActivationPolicy: lazy
+Require-Bundle: org.eclipse.xtext,
+ org.eclipse.xtext.xbase,
+ org.eclipse.equinox.common;bundle-version="3.5.0",
+ org.eclipse.emf.ecore,
+ org.eclipse.xtext.xbase.lib,
+ org.antlr.runtime,
+ org.eclipse.xtext.util,
+ org.eclipse.xtend.lib,
+ org.eclipse.emf.common
+Bundle-RequiredExecutionEnvironment: JavaSE-1.8
+Export-Package: org.eclipse.uml.verification.tl,
+ org.eclipse.uml.verification.tl.temporalLogic.util,
+ org.eclipse.uml.verification.tl.scoping,
+ org.eclipse.uml.verification.tl.serializer,
+ org.eclipse.uml.verification.tl.temporalLogic,
+ org.eclipse.uml.verification.tl.generator,
+ org.eclipse.uml.verification.tl.validation,
+ org.eclipse.uml.verification.tl.parser.antlr.internal,
+ org.eclipse.uml.verification.tl.services,
+ org.eclipse.uml.verification.tl.parser.antlr,
+ org.eclipse.uml.verification.tl.temporalLogic.impl
+Import-Package: org.apache.log4j,
+ org.eclipse.uml.verification.helper

@@ -1,0 +1,24 @@
+grammar org.eclipse.uml.verification.tl.TemporalLogic with org.eclipse.xtext.common.Terminals
+
+generate temporalLogic "http://www.eclipse.org/uml/verification/tl/TemporalLogic"
+
+Model:
+	(location = Import)?
+	(property1+=Property1 | property2+=Property2)*
+	;
+	
+	Option:
+		(Property1 | Property2)
+	;
+	
+	Import:
+		'import' model=STRING
+	;
+	
+	terminal TEST: ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'_'|'::'|'0'..'9')*;
+	 
+	Property1: 
+		 operator=('AG'|'AF'|'EG'|'EF'|'NOT'| 'G' | 'F')('(') (modelElement1=TEST | next+=Option)(')');
+		 
+    Property2: 
+		 modelElement1=TEST operator=('AND' | 'OR'| '=>') (modelElement2=TEST| ('(')next = Option(')'));

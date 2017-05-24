@@ -1,0 +1,3 @@
+go
+check_ctlspec -o /Users/zdaw/Documents/work/Software/EclipseWorkspace/UML-VT/runtime-EclipseXtext/test1/report.txt
+quit -x

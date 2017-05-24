@@ -1,0 +1,195 @@
+-- @path GraphMetaM=/UML2Graph/input/GraphMetaM.ecore
+-- @nsURI UML=http://www.eclipse.org/uml2/2.0.0/UML
+-- @lib UMLReaderLib=/UML2Graph/src/UMLReaderLib.atl
+-- @lib GraphLib=/UML2Graph/src/GraphLib.atl
+
+
+-- Module:UML2Graph
+-- Function: Transforms UML Activities extended by DMOSES profile into graphs
+-- Inputs: UML models and DMOSES profile
+-- Outputs: A graph
+module UML2Graph;
+create OUT: GraphMetaM from IN: UML, Profile: DMOSES;
+
+-- Libraries
+uses UMLReaderLib;
+uses GraphLib;
+
+-- Rule definitions
+
+---  Creates one model and fills it with a graph for each activity
+rule Model2Model{
+	from 
+		UMLmodel: UML!Model
+	to 
+		model: GraphMetaM!Model(
+			name <- 'Model',
+			graph <- UMLmodel.ownedType->select(e|e.oclType() = UML!Activity)
+				->collect(e|thisModule.Activity2Graph(e)),
+			graph <-UMLmodel.nestedPackage
+				->collect(p | p.ownedType->select(e|e.oclType() = UML!Activity)
+				->collect(e|thisModule.Activity2Graph(e)))
+		)	
+}
+
+
+---  Creates for each activity a graph and fills the graph with vertices and edges
+lazy rule Activity2Graph {
+	from
+		activity: UML!Activity
+	to
+		graph: GraphMetaM!Graph(
+			name  <- activity.name,--.debug('Activity'),
+			
+			-- Activity nodes
+			vertex <- activity.ownedNode->select(e|e.oclType() <> UML!ActivityParameterNode)
+					  ->collect(e|thisModule.ActivityNode2Vertex(e)),	
+			
+			-- ParamerSets 
+			vertex <- activity.getActivityParameterSet()->collect(e|thisModule.ANDVertex(e)),
+			
+			-- ParamerSets of actions within the activity
+			vertex <-activity.getActionsParameterSet()->collect(e|thisModule.ANDVertexrName(e)),
+			
+			-- Initialization 
+			vertex <- activity.ActivityIntialization(graph),
+			
+			-- Finalization 
+			vertex <-thisModule.ANDVertex('Final'),
+			
+			-- Events
+			vertex <- activity.createEvents(),
+			
+			-- Edges
+			edge <- activity.edge->select(e | not e.source.oclIsUndefined() and not e.target.oclIsUndefined()  )
+					->collect(e|thisModule.ActivityEdge2Vertex(e,graph)),
+				
+			-- Connecting Events
+			edge <- activity.connectEvents(graph),
+			
+			-- Connecting ParameterSets
+			edge <- activity.connectParameterSet(graph),
+			
+			-- Connecting Initialization
+			edge <- activity.connectInitialization(graph),
+			
+			-- Connecting Finalization
+			edge <- activity.connectFinalization(graph)
+			
+			
+		) 
+		
+		do
+		{
+			-- Evaluation
+			graph.vertex->select(v | v.incoming.isEmpty() and v.outgoing.isEmpty())
+			->collect(v | (v.name+'---'+v.incoming.size().toString()+'---'+v.outgoing.size().toString()).debug('Error #1:'+graph.name));
+			
+			graph.edge->select(e | e.source.oclIsUndefined() or e.target.oclIsUndefined())
+			->collect(e | e.name.debug('Error #2:'+graph.name));
+			
+		}
+}
+
+
+
+---  Creates for each ActivityEdge a vertex
+lazy  rule ActivityEdge2Vertex {
+	from
+		edge: UML!ActivityEdge,
+		graph: GraphMetaM!Graph
+	to
+		edgeGraph: GraphMetaM!Edge (
+			source <- edge.getSource(graph),
+			target <- edge.getTarget(graph),
+			localPriority <- edge.getPriority(),
+			name <- edgeGraph.source.name+';'+edgeGraph.target.name
+		)	
+	
+}
+
+---  Creates for each ActivityNode a vertex
+lazy  rule ActivityNode2Vertex {
+	from
+		node: UML!ActivityNode 
+	to
+		vertex: GraphMetaM!Vertex(
+			name  <- node.getUniqueName(),
+			rName <- node.getName(),
+			type <- if(node.oclType()=UML!DecisionNode or node.oclType()=UML!MergeNode or 
+					   node.hasParameterSet())
+					then
+						'or'
+					else
+						'and'
+					endif,
+			activity <- if node.oclType()=UML!CallBehaviorAction  then
+							if  not node.behavior.oclIsUndefined() then
+								node.behavior.name
+							else OclUndefined endif
+						else OclUndefined endif,
+			cycles <- node.getCycles()
+		)			
+}
+
+
+--- Creates a vertex with type 'and' for each string, which correspond to the name of the vertex
+ lazy rule ANDVertex {
+	from 
+		name: String 
+	to
+		vertex: GraphMetaM!Vertex(
+			name <- name.toString(),
+			rName <- name.toString(),
+			type <- 'and'	
+		)
+}
+
+--- Creates a vertex with type 'and' for each string, which correspond to the name of the vertex
+ lazy rule ANDVertexrName {
+	from 
+		v : TupleType (name : String, rName : String)
+	to
+		vertex: GraphMetaM!Vertex(
+			name <- v.name,
+			rName <- v.rName,
+			type <- 'and'	
+		)
+}
+
+--- Creates a vertex with type 'or' for each string, which correspond to the name of the vertex
+ lazy rule ORVertex {
+	from 
+		name: String 
+	to
+		vertex: GraphMetaM!Vertex(
+			name <- name.toString(),
+			rName <- name.toString(),
+			type <- 'or'	
+		)
+}
+
+
+ lazy rule Edge {
+	from 
+		graph: GraphMetaM!Graph,
+		sourceName:String,
+		targetName:String,
+		priorityValue:Integer
+	to
+		edgeGraph: GraphMetaM!Edge(
+			source <- graph.vertex->select(v | v.name = sourceName)->first(),
+			target <- graph.vertex->select(v | v.name = targetName)->first(),
+			localPriority <- priorityValue,
+			name <- edgeGraph.source.name+';'+edgeGraph.target.name
+		)
+}
+ 
+ lazy rule EdgeTest {
+	from 
+		source:String
+	to
+		edgeGraph: GraphMetaM!Edge(
+		)
+}
+ 

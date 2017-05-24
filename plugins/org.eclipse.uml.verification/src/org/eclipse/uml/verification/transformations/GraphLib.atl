@@ -1,0 +1,494 @@
+-- @path GraphMetaM=/UML2Graph/input/GraphMetaM.ecore
+-- @nsURI UML=http://www.eclipse.org/uml2/2.0.0/UML
+
+library GraphLib;
+
+-- Global variables
+
+
+--- Returns an unique name for the element
+--- The name is: Type + ID 
+--- The ID is unique in the element of the same type
+helper context UML!Element def: getUniqueName() : String =	
+	if (self.owner.oclType()=UML!Activity  and not (self.oclType()=UML!ActivityParameterNode)) then
+		self.oclType().toString().split('!').last()+	
+		self.owner.ownedNode->select(e| e.oclType()=self.oclType()).indexOf(self).toString()
+	else
+		self.name
+	endif;
+
+--- Returns the name of the element assigned in the UML model
+--- or creates a unique name in case that there is not an assigned name
+helper context UML!Element def: getName() : String =
+	if self.name=''  then self.getUniqueName() else self.name endif;
+
+--- Returns the WCET cycles set in the UML model as a stereotype
+--- If there is not set any WCET, 0 is returned
+helper context UML!ActivityNode def: getCycles () :  Integer =
+	if not self.hasStereotype('WCET') then
+		0
+	else
+		self.getValue( self.getStereotype('WCET'),'cycles')
+	endif;
+
+-- PARAMETER SET FUNCTIONS --
+
+--- Return a set of names of the ParameterSets of an activiy
+--- The name is: Direction + 'Port' + Number 
+--- MagicDraw does not support ParameterSet, therefore we use stereotypes
+helper context UML!Activity def: getActivityParameterSet() : Set (String) =
+	if self.ownedNode->select(e | e.oclType()=UML!ActivityParameterNode and e.hasStereotype('ParameterSet')).isEmpty() then
+	Set{'inPort0', 'outPort0'}
+	else
+		self.ownedNode->select(e | e.oclType()=UML!ActivityParameterNode and e.hasStereotype('ParameterSet'))
+		->collect(e | e.getValue( e.getStereotype('ParameterSet'),'Number')
+				  ->collect(f | Set { e.parameter.direction.toString()+'Port'+f.toString(),
+									  e.parameter.direction.toString()+'Port0'}
+				 			))->union(Set{'inPort0', 'outPort0'})->flatten(). asSet()
+	endif;
+
+--- Return a set of names of the ParameterSet of the action within an activity
+--- The name is: Action's name + Direction + 'Port' + Number 
+helper context UML!Activity def: getActionsParameterSet() : Set ( TupleType (name : String, rName : String)) =
+	self.ownedNode->select(e|e.oclType() = UML!CallBehaviorAction)
+	->collect(e| e.getActionParameterSet())->flatten().asSet()
+	->select(e | e<>'');
+
+	
+--- Return a set of names of the ParameterSet of an action 
+--- The name is: Action's name + Direction + 'Port' + Number 
+helper context UML!CallBehaviorAction def: getActionParameterSet() : Set (TupleType (name : String, rName : String)) =
+	if (	self.behavior.oclIsUndefined()  and 
+			self.input->select(p | p.hasStereotype('ParameterSet')).isEmpty() and
+			self.output->select(p | p.hasStereotype('ParameterSet')).isEmpty() 
+		) then
+		-- No behavior and no parameter sets
+		Set{}
+	else --Todo: When CBA and Behavior have parameter sets
+		if not self.behavior.oclIsUndefined() then
+			-- With behavior and with parameter sets	
+			self.behavior.getActivityParameterSet()
+			->collect(e | Tuple{name = self.getUniqueName()+e,rName = self.getName()+e})
+		else
+			-- No behavior and with parameter sets		
+			self.getActionInputParameterSet()
+			->union(self.getActionOutputParameterSet())
+			endif
+	endif;
+	
+--- Return a set of names of the input ParameterSet of an action 
+--- The name is: Action's name + 'inPort' + Number 	
+helper context UML!CallBehaviorAction def: getActionInputParameterSet() : Set (TupleType (name : String, rName : String)) =
+	if not self.input->exists(p|p.hasStereotype('ParameterSet')) then
+		-- No Input ParameterSets
+		if not self.output->exists(p|p.hasStereotype('ParameterSet')) then
+			-- No ParameterSets
+			Set{Tuple{name = self.getUniqueName(),rName = self.getName()}}
+		else
+			-- Only output ParameterSets
+			Set{Tuple{name = self.getUniqueName()+'inPort0',rName = self.getName()+'inPort0'}}
+		endif
+	else
+		-- With input ParameterSets
+		self.input->select(e | e.hasStereotype('ParameterSet'))
+		->collect(e | e.getValue( e.getStereotype('ParameterSet'),'Number')
+			->collect(f | 'inPort'+f.toString() )
+		)->union(Set{'inPort0'})->flatten()->collect(e | Tuple{name = self.getUniqueName()+e,rName = self.getName()+e})
+	endif;
+		
+--- Return a set of names of the output ParameterSet of an action 
+--- The name is: Action's name + 'outPort' + Number 
+helper context UML!CallBehaviorAction def: getActionOutputParameterSet() : Set (TupleType (name : String, rName : String)) =
+	if not self.output->exists(p|p.hasStereotype('ParameterSet')) then
+		-- No output ParameterSets
+		if not self.input->exists(p|p.hasStereotype('ParameterSet')) then
+			-- No ParameterSets
+			Set{Tuple{name = self.getUniqueName(),rName = self.getName()}}
+		else
+			-- Only input ParameterSets
+			Set{Tuple{name = self.getUniqueName()+'outPort0',rName = self.getName()+'outPort0'}}
+		endif
+	else
+		-- With output ParameterSets
+		self.output->select(e | e.hasStereotype('ParameterSet'))
+		->collect(e | e.getValue( e.getStereotype('ParameterSet'),'Number')
+			->collect(f | 'outPort'+f.toString() )
+		)->union(Set{'outPort0'})->flatten()->collect(e | Tuple{name = self.getUniqueName()+e,rName = self.getName()+e})
+	endif;
+
+helper context UML!Element def: hasParameterSet() : Boolean =
+	if  self.oclType()<>UML!CallBehaviorAction then
+		false
+	else
+		if self.behavior.oclIsUndefined() then
+			
+			if (	self.input->exists(p | p.hasStereotype('ParameterSet')) or
+					self.output->exists(p | p.hasStereotype('ParameterSet'))
+				) then
+				true
+			else
+				false
+			endif
+		else		  
+			if self.behavior.ownedNode->exists(e | e.oclType()=UML!ActivityParameterNode and e.hasStereotype('ParameterSet')) then
+				true
+			else
+				false
+			endif
+		endif
+	endif;
+	
+	
+--- Return a set of names of the output ParameterSets, to which are assigned to an output pin 
+--- The name is: 'outPort' + Number for output pins that belong to a node with ParameterSets
+--- The name is: 'outPort0' for output pins that belong to a node without ParameterSets
+helper context UML!OutputPin def: getOutPinParameterSet () : String = 
+	if (not self.owner.output->exists(p|p.hasStereotype('ParameterSet')) and
+	   not self.owner.input->exists(p|p.hasStereotype('ParameterSet')) )	then
+		-- Owner does not have ParameterSets
+		Set{''}
+	else
+		if not self.hasStereotype('ParameterSet') then
+			-- Pin does not belong to a ParameterSet
+			Set{'outPort0'}
+		else
+			-- Pin belongs to a ParameterSet
+			self.getValue( self.getStereotype('ParameterSet'),'Number')
+			->collect(p | 'outPort'+p.toString()).asSet()				
+		endif
+	endif;
+
+--- Return a set of names of the input ParameterSets, to which are assigned to an input pin 
+--- The name is: 'inPort' + Number for input pins that belong to a node with ParameterSets
+--- The name is: 'inPort0' for input pins that belong to a node without ParameterSets
+helper context UML!InputPin def: getInPinParameterSet () : String = 
+	if( not self.owner.input->exists(p|p.hasStereotype('ParameterSet')) and 
+		not self.owner.output->exists(p|p.hasStereotype('ParameterSet')) )	then
+		-- Owner does not have ParameterSets
+		Set{''}
+	else
+		if not self.hasStereotype('ParameterSet') then
+			-- Pin does not belong to a ParameterSet
+			Set{'inPort0'}
+		else
+			-- Pin belongs to a ParameterSet
+			self.getValue( self.getStereotype('ParameterSet'),'Number')
+			->collect(p | 'inPort'+p.toString()).asSet()				
+		endif
+	endif;
+
+
+--- Return a set of names of the output ParameterSets, to which are assigned to an ActivityParameterNode
+--- The name is: 'outPort' + Number for output pins that belong to a node with ParameterSets
+--- The name is: 'outPort0' for ActivityParameterNodes that belong to an activity without ParameterSets
+helper context UML!ActivityParameterNode def: getAPNParameterSet () : String = 
+	if not self.owner.ownedNode->select(e | e.oclType()=UML!ActivityParameterNode)->exists(p|p.hasStereotype('ParameterSet') and 
+		p.parameter.direction=self.parameter.direction)
+		then
+		-- Owner does not have ParameterSets
+		Set{'outPort0'}
+	else
+		if not self.hasStereotype('ParameterSet') then
+			-- Pin does not belong to a ParameterSet
+			Set{self.direction.parameter.toString() + 'Port0'}
+		else
+			-- Pin belongs to a ParameterSet
+			self.getValue( self.getStereotype('ParameterSet'),'Number')
+			->collect(p | self.parameter.direction.toString() + 'Port'+p.toString()).asSet()				
+		endif
+	endif;
+
+
+
+-- ************************ -- 
+-- ACTIVITY INITIALIZATIONS --
+-- ************************ --
+
+--- Create vertexes correspoding to the initialization of activity
+--- A OR-Vertex called 'Ini' if there is multiple ParameterSets
+--- A AND-Vertex called 'tial' if there is at least one InitialNode
+helper context UML!Activity def: ActivityIntialization(graph: GraphMetaM!Graph) : Set (GraphMetaM!Vertex) =
+	if ( not self.ownedNode->exists(n | n.oclIsTypeOf(UML!InitialNode))  and 
+		graph.vertex->select(v | v.name.startsWith('inPort')).size() = 1
+	) then
+		-- No InitialNodes and only one ParameterSet
+		OclUndefined
+	else
+		if self.ownedNode->exists(n | n.oclIsTypeOf(UML!InitialNode)) then
+			if graph.vertex->select(v | v.name.startsWith('inPort')).size() = 1 then
+				-- With InitialNodes and only one ParameterSet
+				thisModule.ANDVertex('tial')
+			else
+				-- With InitialNodes and  multiple ParameterSet
+				Set {thisModule.ORVertex('Ini')}->union(Set {thisModule.ANDVertex('tial')})
+			endif
+		else
+			-- No InitialNodes and multiple ParameterSet
+			thisModule.ORVertex('Ini')
+		endif
+	endif;
+
+
+--- Create edges that connect vertexes correnspoding to the Initialization
+helper context UML!Activity def: connectInitialization(graph: GraphMetaM!Graph) : Set (GraphMetaM!Edge) =
+	(
+		if graph.vertex->exists(v | v.name='Ini') then
+			-- Connect input ParameterSets to 'Ini'
+			graph.vertex->select(v | v.name.startsWith('inPort'))
+			->collect(v | thisModule.Edge(graph, v.name, 'Ini', 0))
+		else
+			Set {}
+		endif
+	)
+	->union
+	(	-- Connect 'tial' to IntialNodes
+		self.ownedNode->select(n | n.oclIsTypeOf(UML!InitialNode)) 
+		->collect(n | thisModule.Edge(graph,'tial', n.getUniqueName(), 
+			n.outgoing->sortedBy(e | e.getPriority()).last().getPriority())) 
+	)
+	->union
+	(
+		if graph.vertex->exists(v | v.name='Ini') and graph.vertex->exists(v | v.name='tial') then
+			-- Connect 'Ini' to 'tial
+			Set {thisModule.Edge(graph, 'Ini', 'tial',0)} 
+		else
+			Set{}
+		endif
+	)
+	->union
+	(
+		if (not graph.vertex->exists(v | v.name='Ini')) and graph.vertex->exists(v | v.name='tial') then
+			-- Connect 'Ini' to 'tial
+			Set {thisModule.Edge(graph, 'inPort0', 'tial',0)} 
+		else
+			Set{}
+		endif
+	);
+
+
+
+-- ************************ -- 
+--     FINALIZATION         --
+-- ************************ --
+--- Create edges that connect vertexes correnspoding to the finalization
+helper context UML!Activity def: connectFinalization(graph: GraphMetaM!Graph) : Set (GraphMetaM!Edge) =
+	-- Connect 'Final' to output ParameterSets 
+	graph.vertex->select(v | v.name.startsWith('outPort'))
+	->collect(v | thisModule.Edge(graph, 'Final', v.name, 0)) 
+	->union
+		(
+			if graph.vertex->exists(v | v.name='tial') then
+				-- Connect 'tial to 'Final' 
+				-- because there is InitialNodes in the activity
+				Set {thisModule.Edge(graph,  'tial' , 'Final',	
+					graph.vertex->select(v | v.name='tial').first().getHighestOutgoingPriority(graph)
+					+graph.vertex->select(v | v.name='tial').first().outgoing.size()) 	
+					}
+			else
+				if graph.vertex->exists(v | v.name='Ini') then
+					-- Connect 'Ini to 'Final'  
+					-- because there is not InitialNodes in the activity but there are more then one ParameterSet
+					Set {thisModule.Edge(graph,  'Ini' , 'Final',
+						graph.vertex->select(v | v.name='Ini').first().getHighestOutgoingPriority(graph)
+						+graph.vertex->select(v | v.name='Ini').first().outgoing.size()) 	
+						}
+				else
+					-- Connect 'inPort0' to 'Final'
+					-- because there is not InitialNodes in the activity but there is only one ParameterSet
+					Set {thisModule.Edge(graph,  'inPort0' , 'Final',
+						graph.vertex->select(v | v.name='inPort0').first().getHighestOutgoingPriority(graph)
+						+graph.vertex->select(v | v.name='inPort0').first().outgoing.size()) 	
+						}	
+				endif 
+			endif
+		);
+
+-- ************************ -- 
+--          EVENTS          --
+-- ************************ --
+--- Create vertexes correspoding to the event management of the activity
+--- For each event sent from the activity an OR_Vertex is created, which is called '_Event'+event+In
+--- For each event received from the activity an AND_Vertex is created, which is called '_Event'+event+Out
+helper context UML!Activity def: createEvents() : Set (GraphMetaM!Vertex) =
+	self.ownedNode->select(n|n.oclIsTypeOf(UML!SendSignalAction))->collect(e | e.signal.name).asSet()
+	->collect(e | thisModule.ORVertex( '_Event'+ e + 'In'))
+	->union
+	(
+		self.ownedNode->select(n|n.oclIsTypeOf(UML!AcceptEventAction))
+		->collect(e | e.trigger->collect(f |  f.event.signal.name))->flatten().asSet()
+		->collect(f | thisModule.ANDVertex('_Event'+ f + 'Out'))
+	);
+
+
+
+--- Create edges that connect vertexes correnspoding to events to SendSignalAction and AcceptEventAction
+helper context UML!Activity def: connectEvents(graph: GraphMetaM!Graph) : Set (GraphMetaM!Edge) =
+	-- Connecting SendSignalAction to '_Event' + Signal + 'In'
+	self.ownedNode->select(n|n.oclIsTypeOf(UML!SendSignalAction))
+	->collect(e | thisModule.Edge( graph, e.getUniqueName(), '_Event'+ e.signal.name + 'In', 0)).asSet()
+	->union
+	(
+		-- Connecting '_Event' + Signal + 'Out' to AcceptEventAction
+		self.ownedNode->select(n|n.oclIsTypeOf(UML!AcceptEventAction))
+		->collect(e | e.trigger
+		->collect(f | thisModule.Edge( graph,'_Event'+ f.event.signal.name + 'Out',  e.getUniqueName(), 0))).asSet()
+				
+	)
+	->union
+	(	-- Connecting '_Event' + Signal + 'In' to '_Event' + Signal + 'Out'
+		graph.vertex->select(v | v.name.startsWith('_Event') and v.name.endsWith('In') )
+		->select(v|graph.vertex->exists(vp | vp.name=(v.name.substring(1,v.name.lastIndexOf('In') )+'Out')))
+		->collect(v | thisModule.Edge( graph, v.name, ( v.name.substring(1,v.name.lastIndexOf('In'))+'Out'),0)).asSet()
+		
+	);
+	
+
+-- ************************ -- 
+--           EDGES          --
+-- ************************ --
+
+
+--- Returns the source vertex in the graph accoring to an edge in the UML activity
+helper context UML!ActivityEdge def: getSource (graph: GraphMetaM!Graph) : GraphMetaM!Vertex =
+	-- Todo: implement when the source pin is associated to multiple ParameterSet
+	if (self.source.oclIsTypeOf(UML!CallBehaviorAction))then
+		-- CallBehaviorAction
+		if not self.source.behavior.oclIsUndefined() then
+			-- Source is a CBA with Behavior
+			graph.vertex->select(v|v.name=self.source.getUniqueName()+'outPort0').first()	
+		else
+			-- Source is a CBA without Behavior
+			self.source.getActionOutputParameterSet()
+			->collect(ps | graph.vertex->select(v|v.name=ps.name))->flatten().first()
+		endif
+	else
+		-- No CallBehaviorAction
+		if self.source.oclIsTypeOf(UML!OutputPin)  then
+			-- Outpin
+			if self.source.owner.oclIsTypeOf(UML!CallBehaviorAction) then
+				-- Owner is a  CallBehaviorAction
+				if not self.source.owner.behavior.oclIsUndefined() then
+					-- Owner is a CBA with Behavior
+					self.source.owner.behavior.ownedNode
+					->select(p | p.oclType()=UML!ActivityParameterNode and p.getUniqueName()=self.source.getUniqueName())
+					->first().getAPNParameterSet()
+					->collect(ps | graph.vertex->select(v|v.name= self.source.owner.getUniqueName() + ps))->flatten().first()
+				else
+					-- Owner is a CBA without Behavior
+					self.source.getOutPinParameterSet()
+					->collect(ps | graph.vertex->select(v|v.name=self.source.owner.getUniqueName() + ps))->flatten().first()
+				endif
+			else
+				-- Owner is control node
+				graph.vertex->select(v|v.name=self.source.owner.getUniqueName()).first()
+			endif		
+		else
+		-- ControlNodes
+			if self.source.oclIsTypeOf(UML!ActivityParameterNode) then
+				-- Source is an ActivityParameterNode
+				if not self.source.hasStereotype('ParameterSet') then
+					-- The activity does not have any ParameterSet
+					graph.vertex->select(v|v.name='inPort0').first()
+				else
+					-- The activity has ParameterSets
+					self.source.getValue( self.source.getStereotype('ParameterSet'),'Number')
+					->collect(p | graph.vertex->select(v|v.name='inPort'+p.toString()))->flatten().first()		
+				endif
+			else
+				graph.vertex->select(v|v.name=self.source.getUniqueName()).first()
+			endif
+		endif
+	endif;
+			
+
+--- Returns the target vertex in the graph accoring to an edge in the UML activity
+helper context UML!ActivityEdge def: getTarget (graph: GraphMetaM!Graph) : GraphMetaM!Vertex =
+	-- Todo: implement when the target pin is associated to multiple ParameterSet
+	if self.target.oclIsTypeOf(UML!CallBehaviorAction)
+	then
+		-- CallBehaviorAction
+		if not self.target.behavior.oclIsUndefined() then
+			graph.vertex->select(v|v.name=self.target.getUniqueName()+'inPort0').first()
+		else
+			-- target is a CBA without Behavior
+			self.target.getActionInputParameterSet()
+			->collect(ps | graph.vertex->select(v|v.name= ps.name))->flatten().first()
+		endif
+	else
+		-- No CallBehaviorAction
+		if self.target.oclIsTypeOf(UML!InputPin)  then
+			-- Inputpin
+			if self.target.owner.oclIsTypeOf(UML!CallBehaviorAction) then
+				-- Owner is a  CallBehaviorAction
+				if (not self.target.owner.behavior.oclIsUndefined()) then
+					-- Owner is a CBA with Behavior
+					self.target.owner.behavior.ownedNode
+					->select(p | p.oclType()=UML!ActivityParameterNode and p.getUniqueName()=self.target.getUniqueName())
+					->first().getAPNParameterSet()
+					->collect(ps | graph.vertex->select(v| (v.name = (self.target.owner.getUniqueName() + ps))))->flatten().first()
+				else
+					-- Owner is a CBA without Behavior
+					self.target.getInPinParameterSet()
+					->collect(ps | graph.vertex->select(v|v.name=self.target.owner.getUniqueName() + ps))->flatten().first()
+				endif
+			else
+				-- Owner is control node
+				graph.vertex->select(v|v.name=self.target.owner.getUniqueName()).first()
+			endif		
+		else
+		-- ControlNodes
+			if self.target.oclIsTypeOf(UML!ActivityParameterNode) then
+				-- target is an ActivityParameterNode
+				if not self.target.hasStereotype('ParameterSet') then
+					-- The activity does not have any ParameterSet
+					graph.vertex->select(v|v.name='outPort0').first()
+				else
+					-- The activity has ParameterSets
+					self.target.getValue( self.target.getStereotype('ParameterSet'),'Number')
+					->collect(p | graph.vertex->select(v|v.name='outPort'+p.toString()))->flatten().first()		
+				endif
+			else
+				graph.vertex->select(v|v.name=self.target.getUniqueName()).first()
+			endif
+		endif
+	endif;
+
+
+--- Returns the priority level set in the UML model as a stereotype
+--- If there is not set any priority, 0 is returned
+helper context UML!ActivityEdge def: getPriority () :  Integer =
+	if not self.hasStereotype('priority') then
+		0
+	else
+		self.getValue( self.getStereotype('priority'),'level')
+	endif;
+
+
+
+
+--- Create edges that connect vertexes correnspoding to the ParameterSets
+helper context UML!Activity def: connectParameterSet(graph: GraphMetaM!Graph) : Set (GraphMetaM!Edge) =
+	self.getActionsParameterSet()
+	->collect(v |  graph.createEdgeParameterSet(v.name));
+
+
+--- Create edges that connect vertexes correnspoding to the ParameterSets
+helper context GraphMetaM!Graph def: createEdgeParameterSet(VertexParameterSet : String) : GraphMetaM!Edge =
+	if VertexParameterSet.indexOf('inPort') > 0 then
+		-- Input ParamerterSet
+		thisModule.Edge(self, VertexParameterSet,VertexParameterSet.split('inPort').first(), 0)
+	else
+		-- Output ParamerterSet
+		thisModule.Edge(self, VertexParameterSet.split('outPort').first(), VertexParameterSet, 0)
+	endif;
+	
+
+
+--- Return the highest priority level of the outgoing edges
+helper context GraphMetaM!Vertex def: getHighestOutgoingPriority(graph: GraphMetaM!Graph) : Integer =
+	if self.outgoing.isEmpty() then
+		0
+	else
+		self.outgoing->sortedBy(e | e.localPriority).last().localPriority
+	endif;
+		

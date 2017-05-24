@@ -1,0 +1,31 @@
+«IMPORT GraphMetaM»
+«EXTENSION helpFunc»
+
+«DEFINE main FOR Model»
+  «FILE "mappingNameFactory.java"»
+  
+  package org.eclipse.uml.verification.conversions;
+  import java.util.HashMap;
+
+  public class mappingNameFactory {
+	
+	public static HashMap<String, String> getMapping() {
+		
+		HashMap<String, String> mappingTable = new HashMap<String, String>();
+		
+		«FOREACH this.graph AS graph»
+		«FOREACH graph.vertex AS vertex»
+		«FOREACH vertex.name.split(":") AS singleName»
+		mappingTable.put("«graph.name»::«singleName.replaceAll(";","::")»", "«vertex.rName»");
+		«ENDFOREACH»
+		«ENDFOREACH»
+		
+		«ENDFOREACH»	
+		
+		return mappingTable;
+	}
+
+}
+  «ENDFILE» 
+
+«ENDDEFINE»

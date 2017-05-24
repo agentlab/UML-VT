@@ -1,0 +1,94 @@
+«IMPORT GraphMetaM»
+«EXTENSION M2T::helpFunc»
+
+«DEFINE main FOR Model»
+   «EXPAND NuSMVflat FOREACH this.graph »
+«ENDDEFINE»
+
+«REM» 
+---------------------------------------------------------------------------------------------------------------
+	Translation into UPPAAL models from UML activities (extended by the DMOSES profile)
+	The transformation is based on a flat strategie 
+	Input: graph (activity)
+	Output: one smv-file for each graph (activity) in the model
+---------------------------------------------------------------------------------------------------------------
+«ENDREM»
+«DEFINE NuSMVflat FOR Graph-»
+«calculateGCD(vertex.getValidVertex().select(e|e.cycles!=0 && vertex.selectFirst(x|x.cycles==e.cycles)==e).sortBy(e|e.cycles).cycles)»
+
+«FILE name+".smv"-»
+MODULE incTime (timer, reset)
+	VAR 
+		clock : 0..«getclockSize(vertex.getValidVertex().cycles)»;
+		state : {idle, finish};
+		
+	INIT
+		( clock = 0 & state = idle )
+		
+	TRANS
+		( timer != -1 & !reset & state = idle & next(clock)= clock + timer & next(state) = finish & next(timer) = timer) |
+		( timer = -1 & !reset & state = idle & next(clock)= clock & next(state) = state ) |
+		( state = finish & !reset & next(clock) = clock & next(state) = idle) |
+		(reset & next(clock) = 0 & next(state) = idle)
+
+
+
+MODULE main
+
+		VAR
+		«FOREACH vertex.getValidVertex() AS v»
+		inT«v.rName» : 0..«IF v.incoming.getValidEdge().isEmpty»1«ELSE»«v.incoming.getValidEdge().size»«ENDIF»;
+		outT«v.rName» : 0..«v.outgoing.getValidEdge().size+1»;
+		«ENDFOREACH»
+		
+		timer : -1..«vertex.getValidVertex().sortBy(e|e.cycles).last().cycles/getGCD()»;
+		proc : incTime(timer,reset);
+		
+		DEFINE
+		only_timer := «FOREACH vertex.getValidVertex() AS v» next(inT«v.rName») = inT«v.rName» & next(outT«v.rName») = outT«v.rName» «IF  v != vertex.getValidVertex().last()»&«ENDIF» «ENDFOREACH»;
+		only_outs := «FOREACH vertex.getValidVertex() AS v» next(inT«v.rName») = inT«v.rName»  «IF  v != vertex.getValidVertex().last()»&«ENDIF» «ENDFOREACH»;		
+		«FOREACH vertex.getValidVertex() AS vOnly»
+		only_inT«vOnly.rName» := «FOREACH vertex.getValidVertex().select(e|e!=vOnly) AS v» next(inT«v.rName») = inT«v.rName»«IF  v != vertex.getValidVertex().select(e|e!=vOnly).last()» & «ENDIF»«ENDFOREACH»;
+		only_outT«vOnly.rName» := «FOREACH vertex.getValidVertex().select(e|e!=vOnly) AS v» next(outT«v.rName») = outT«v.rName»«IF  v != vertex.getValidVertex().select(e|e!=vOnly).last()» & «ENDIF»«ENDFOREACH»;
+		«ENDFOREACH»
+		
+		«FOREACH edge.getValidEdge() AS edg-» «IF edg == edge.getValidEdge().selectFirst(e|e.source.rName == edg.source.rName && e.target.rName == edg.target.rName)» 
+		only_outT«edg.source.rName»_outT«edg.target.rName» := «FOREACH vertex.getValidVertex().select(e|e!=edg.source && e!=edg.target ) AS v» next(outT«v.rName») = outT«v.rName» & «ENDFOREACH» only_outs;
+		«ENDIF»«ENDFOREACH»
+		
+		start := proc.state = idle  & only_timer;
+		ready :=  proc.state = finish  & next(timer) = -1;
+		notime := next(timer) = timer;
+		reset := outTid0 = «vertex.selectFirst(e|e.rName.matches("id0")).outgoing.getValidEdge().size+1»;
+		
+		initAct := (next(timer) = -1 «FOREACH vertex.getValidVertex() AS v» & next(inT«v.rName») = «IF v.rName.matches("id0")»1«ELSE»0«ENDIF» & next(outT«v.rName») = 0 «ENDFOREACH»);
+		
+		
+		INIT
+		(timer = -1 «FOREACH vertex.getValidVertex() AS v» & inT«v.rName» = «IF v.rName.matches("id0")»1«ELSE»0«ENDIF» & outT«v.rName» = 0 «ENDFOREACH»)
+		
+		TRANS
+		
+		«FOREACH vertex.getValidVertex() AS v»
+		«IF v!=vertex.getValidVertex().first()»| «ENDIF»(inT«v.rName» >= «IF v.type.toString()=="or" || v.incoming.getValidEdge().isEmpty»1«ELSE»«v.incoming.getValidEdge().size»«ENDIF» & next(timer) = «v.cycles/getGCD()» & start ) 
+		«IF v.type.toString() == "and"-»
+		| (inT«v.rName» >= «IF v.type.toString() == "or" || v.incoming.getValidEdge().isEmpty»1«ELSE»«v.incoming.getValidEdge().size»«ENDIF» & ready & next(inT«v.rName») = inT«v.rName» - «IF v.type.toString()=="or"|| v.incoming.getValidEdge().isEmpty»1«ELSE»«v.incoming.getValidEdge().size»«ENDIF» & next(outT«v.rName») = 1  & only_inT«v.rName» & only_outT«v.rName»)
+		«ENDIF-»
+		«FOREACH v.outgoing.getValidEdge() AS e-»
+		«IF e.source.type.toString() == "or"-»
+		| (inT«e.source.rName» >= «IF e.source.type.toString() == "or" || e.source.incoming.getValidEdge().isEmpty»1«ELSE»«e.source.incoming.getValidEdge().size»«ENDIF» & ready & next(inT«e.source.rName») = inT«e.source.rName» - «IF e.source.type.toString()=="or"|| e.source.incoming.getValidEdge().isEmpty»1«ELSE»«e.source.incoming.getValidEdge().size»«ENDIF» & next(outT«e.source.rName») = «v.outgoing.getValidEdge().sortBy(e|e.localPriority).indexOf(e) + 1»  & only_inT«e.source.rName» & only_outT«e.source.rName»)
+		«ENDIF-»
+		| (outT«v.rName» = «v.outgoing.getValidEdge().sortBy(e|e.localPriority).indexOf(e) + 1» & inT«e.target.rName» = «IF e.target.type.toString()=="or"|| v.incoming.getValidEdge().isEmpty»0«ELSE»«e.target.incoming.getValidEdge().size-1»«ENDIF» & next(inT«e.target.rName») = inT«e.target.rName» + 1 & outT«e.target.rName» = 0 & next(outT«v.rName») = outT«v.rName» & only_outT«v.rName» & only_inT«e.target.rName» & notime) 
+		| (outT«v.rName» = «v.outgoing.getValidEdge().sortBy(e|e.localPriority).indexOf(e) + 1» & inT«e.target.rName» != «IF e.target.type.toString()=="or"|| v.incoming.getValidEdge().isEmpty»0«ELSE»«e.target.incoming.getValidEdge().size-1»«ENDIF» & next(inT«e.target.rName») = inT«e.target.rName» + 1 & outT«e.target.rName» = 0 & next(outT«v.rName») = «IF e.source.type.toString()=="or"»«e.source.outgoing.getValidEdge().size+1»«ELSE»outT«v.rName» + 1«ENDIF» & only_outT«v.rName» & only_inT«e.target.rName» & notime)
+		| (outT«v.rName» = «v.outgoing.getValidEdge().sortBy(e|e.localPriority).indexOf(e) + 1» & outT«e.target.rName» = «e.target.outgoing.getValidEdge().size+1» & next(outT«e.target.rName») = 0 & next(outT«v.rName») = «IF e.source.type.toString()=="or"»«e.source.outgoing.getValidEdge().size+1»«ELSE»outT«v.rName» + 1«ENDIF» & only_outT«v.rName»_outT«e.target.rName» & notime) 
+		«ENDFOREACH-»
+		«IF v.type.toString() == "or" && v.outgoing.getValidEdge().isEmpty-»
+		| (inT«v.rName» >= 1 & ready & next(inT«v.rName») = inT«v.rName» - 1 & next(outT«v.rName») = 1  & only_inT«v.rName» & only_outT«v.rName»)
+		«ENDIF-»«ENDFOREACH»
+		| (reset & initAct ) 
+-- END MAIN
+
+
+«ENDFILE»
+
+«ENDDEFINE»

@@ -1,0 +1,307 @@
+-- @path GraphMetaM=/UML2Graph/input/GraphMetaM.ecore
+
+-- Module:HGraphtoFGraph
+-- Function: Flattens the input hierarchial graph
+-- Inputs: A graph
+-- Outputs: A graph
+module HGraphtoFGraph;
+
+create OUT: GraphMetaM from IN: GraphMetaM;
+
+
+---  Creates one model and fills it with a graph for each activity
+rule Model2Model{
+	from 
+		inModel:GraphMetaM!Model
+	to 
+		outModel: GraphMetaM!Model(
+			name <- inModel.name,
+			graph <-inModel.graph
+		)	
+}
+
+--- Creates a flat graph for each input hierarchical graph
+rule HGraphtoFGraph{
+	from
+		hGraph: GraphMetaM!Graph
+	to
+		fGraph: GraphMetaM!Graph(
+			name  <- hGraph.name,--.debug('Activity'),
+			
+			-- Creating vertexes accorrding to the input vertex
+			vertex <- hGraph.vertex->select(v | v.activity.oclIsUndefined())
+					->collect(v | v.copyVertex(hGraph)),
+			
+			-- Creating vertexes of deeper hierarchical vertexes		
+			vertex <-  hGraph.vertex->select(v | not v.activity.oclIsUndefined())
+					->collect(v | v.getFlatActivityVertex(hGraph, fGraph, '', '')),
+			
+			-- Connecting vertexes accorrding to the input edges		
+			edge <- hGraph.edge->select(e | e.source.activity.oclIsUndefined() and e.target.activity.oclIsUndefined())
+					->collect(e | thisModule.copyEdge(fGraph,e)),	
+					
+			-- Connecting vertexes resulting of the flatting
+			edge <- hGraph.vertex->select(v | not v.activity.oclIsUndefined())
+					->collect(v | v.getFlatActivityEdge(hGraph,fGraph,'')),
+					
+			-- Connecting vertexes correspoding to events
+			edge <- fGraph.getInternalEventEdge()
+			
+			) 
+			
+	do{
+
+
+		-- Evaluation
+			fGraph.vertex->select(v | v.incoming.isEmpty() and v.outgoing.isEmpty())
+			->collect(v | (v.name+'---'+v.incoming.size().toString()+'---'+v.outgoing.size().toString()).debug('Error #1:'+fGraph.name));
+			
+			fGraph.edge->select(e | e.source.oclIsUndefined() or e.target.oclIsUndefined())
+			->collect(e | e.name.debug('Error #2:'+fGraph.name));
+			
+		--	fGraph.name.debug(fGraph.vertex->size().toString()+';'+fGraph.edge->size().toString());
+
+	}
+		
+}
+
+
+
+--- Creates a vertex with the same properties of the incoming vertex (hVertex)
+--- First parameter (uniqueParameter) is required in order to
+--- generate flatted vertexes resulting from the same hierarchial vertex. 
+unique lazy rule copyVertex {
+	from 
+		uniqueParameter : String,
+		hVertex: GraphMetaM!Vertex
+	to
+		fVertex: GraphMetaM!Vertex(
+			name <- hVertex.name,
+			activity <- hVertex.activity,
+			cycles <- hVertex.cycles,
+			rName <- hVertex.rName,
+			type <- hVertex.type		
+		)
+}
+
+--- Creates a vertex with the same properties of the incoming vertex (hVertex)
+--- The name of the resulting vertex is composed as follow: prefix '::' name of hVertex
+lazy rule copyPrefixVertex {
+	from 
+		hVertex: GraphMetaM!Vertex,
+		prefix: String,
+		prefixrName: String
+	to
+		fVertex: GraphMetaM!Vertex(
+			name <- prefix + '::'+hVertex.name,
+			rName <- prefixrName + '::'+hVertex.rName,
+			activity <- OclUndefined,
+			cycles <- hVertex.cycles,
+			type <- hVertex.type		
+		)
+}
+
+--- Create a edge and set parameters according to the input values
+ lazy rule Edge {
+	from 
+		graph: GraphMetaM!Graph,
+		sourceName:String,
+		targetName:String,
+		priorityValue:Integer
+	to
+		edgeGraph: GraphMetaM!Edge(
+			source <- graph.vertex->select(v | v.name=sourceName)->first(),
+			target <- graph.vertex->select(v | v.name=targetName)->first(),
+			localPriority <- priorityValue,
+			name <- edgeGraph.source.name+';'+edgeGraph.target.name
+		)
+}
+
+--- Creates a vertex with the same properties of the input edge (hEdge)
+--- The source and target vertex are selected from the input graph (fGraph)
+--- using their names and the prefix
+ lazy rule copyPrefixEdge {
+	from 
+		fGraph: GraphMetaM!Graph,
+		hEdge: GraphMetaM!Edge,
+		prefix: String
+	to
+		edgeGraph: GraphMetaM!Edge(
+			source <- fGraph.vertex->select(v | v.name = hEdge.source.getHierarchicalName(prefix))->first(),
+			target <- fGraph.vertex->select(v | v.name = hEdge.target.getHierarchicalName(prefix))->first(),
+			localPriority <- hEdge.localPriority,
+			name <- edgeGraph.source.name+';'+edgeGraph.target.name
+		)
+}
+
+
+--- Creates a vertex with the same properties of the input edge (hEdge)
+--- The source and target vertex are selected from the input graph (fGraph)
+--- using their names 
+lazy rule copyEdge {
+	from 
+		fGraph: GraphMetaM!Graph,
+		hEdge: GraphMetaM!Edge
+	to
+		edgeGraph: GraphMetaM!Edge(
+			source <- fGraph.vertex->select(v | v.name=hEdge.source.name)->first(),
+			target <- fGraph.vertex->select(v | v.name=hEdge.target.name)->first(),
+			localPriority <- hEdge.localPriority,
+			name <- edgeGraph.source.name+';'+edgeGraph.target.name
+		)
+}
+ 
+
+-- +++++++++++++++++++++++++++++++
+-- 			HELPERS
+-- +++++++++++++++++++++++++++++++
+
+
+--- Creates and returns a vertex with the same properties of the input vertex  
+helper context GraphMetaM!Vertex def: copyVertex (hGraph: GraphMetaM!Graph) : GraphMetaM!Vertex =
+	thisModule.copyVertex(self.name+hGraph.name, self);
+
+--- Returns a set of vertex correspoding to all lower hierarchical levels of the input vertex
+--- Inputs: 
+--- Input vertex (context) corresponds to a CallBehaviorAction, from which are abstracted the hierarchical levels. 
+--- Hierarchical Graph (hGraph)
+--- Flatted Graph (fGraph)
+--- Prefix is a string that contains the names of higher hierarchies (name of CallBehaviorAction separated with ;)
+helper context GraphMetaM!Vertex def: getFlatActivityVertex (hGraph: GraphMetaM!Graph, fGraph: GraphMetaM!Graph, prefix: String, prefixrName: String) : Set(GraphMetaM!Vertex) =
+	if self.activity <> OclUndefined then
+	-- Vertex with a activity (CallBehaviorActions with behavior) 
+	
+	let actGraph: GraphMetaM!Graph = hGraph.refImmediateComposite().graph->select(g | g.name = self.activity).first() in
+	-- 	actGraph is the graph correspoding to the activity of the vertex
+		
+		-- Creating vertex corresponding to internal vertex of the graph 'actGraph'
+		(actGraph.vertex ->select(v | not ( v.name.startsWith('inPort') or  v.name.startsWith('outPort') or  v.name.startsWith('_Event') ) ) 
+		->collect(v | thisModule.copyPrefixVertex(v, prefix + self.name, prefixrName + self.rName))
+		
+		-- Creating vertex correspoding to deeper hierachical levels by using recursion
+		->union(
+			actGraph.vertex->collect(v | v.getFlatActivityVertex(hGraph,fGraph, prefix +  self.name + '::',  prefixrName +  self.rName + '::'))
+		)
+		
+		-- Creating vertex corresponding to events
+		->union(
+			actGraph.vertex ->select(v | v.name.startsWith('_Event'))
+			->collect(v | v.getFlatEventVertex(hGraph))
+		))->flatten()
+	else
+	-- Vertex without activity
+		Set{}
+	endif;
+	
+
+--- Creates and returns a vertex corresponding to the input vertex
+--- only if there is not a vertex with the same name in the input graph (hGraph)
+helper context GraphMetaM!Vertex def: getFlatEventVertex (hGraph: GraphMetaM!Graph) : GraphMetaM!Vertex =
+	if hGraph.vertex->exists(v |v.name=self.name) then
+		Set{}
+	else
+		self.copyVertex(hGraph)
+	endif;
+	
+--- Returns a set of edges correspoding to all lower hierarchical levels of the input vertex
+--- Inputs: 
+--- Input vertex (context) corresponds to a CallBehaviorAction, from which are abstracted the hierarchical levels. 
+--- Hierarchical Graph (hGraph)
+--- Flatted Graph (fGraph)
+--- Prefix is a string that contains the names of higher hierarchies (name of CallBehaviorAction separated with ;)
+helper context GraphMetaM!Vertex def: getFlatActivityEdge (hGraph: GraphMetaM!Graph, fGraph: GraphMetaM!Graph, prefix: String) : Set(GraphMetaM!Vertex) =
+	-- 	actGraph is the graph correspoding to the activity of the vertex
+	let actGraph: GraphMetaM!Graph = hGraph.refImmediateComposite().graph->select(g | g.name = self.activity).first() in
+	
+	-- Creating edges correspoding to connections between InPorts and CallBehaviorActions
+	self.incoming->collect(i | actGraph.vertex->select(v | v.name.startsWith(i.source.name.split(self.name).last())).first()
+				.outgoing->collect(o | o.getFlatActivityInEdge(fGraph, i, prefix+self.name+'::')))
+	
+	-- Creating edges correspoding to connections between OutPorts and CallBehaviorActions			
+	->union(
+		self.outgoing->collect(o | actGraph.vertex->select(v | v.name.endsWith((o.target.name.split(self.name).first()))).first()
+		.incoming->collect(i | i.getFlatActivityOutEdge(hGraph,fGraph, o, prefix+self.name+'::')))
+	)
+	
+	-- Creating vertex corresponding to internal edges of the graph 'actGraph'
+	->union(
+		actGraph.edge->select(e | not (e.source.name.startsWith('inPort') or e.target.name.startsWith('outPort')))
+		->collect(e | thisModule.copyPrefixEdge (fGraph, e, prefix + self.name  + '::' ))
+	)
+	
+	-- Creating vertex correspoding to deeper hierachical levels by using recursion
+	->union(
+		actGraph.vertex->select(v | not v.activity.oclIsUndefined())
+		->collect(v | v.getFlatActivityEdge(hGraph,fGraph,(prefix+self.name+'::')))
+	);
+
+--- Creates and returns an edge from a vertex correspoding to an InPort to a vertex correspoding to a CallBehaviorAction 
+--- Inputs: 
+--- Edge vertex (context) corresponds to the connection between an InPort and an internal vertex of the CallBehaviorAction ( one deeper hierarchial level)
+--- Edge vertex (extEdge) corresponds to the connection between an InPort and a CallBehaviorAction at the currect hierarchical level
+--- Flatted Graph (fGraph), which contains the source vertex and target vertex of the output edge
+--- Prefix is a string that contains the names of higher hierarchies (name of CallBehaviorAction separated with ;)
+helper context GraphMetaM!Edge def: getFlatActivityInEdge ( fGraph: GraphMetaM!Graph, extEdge: GraphMetaM!Edge,  prefix: String) : GraphMetaM!Edge =
+	thisModule.Edge(fGraph, extEdge.source.getHierarchicalName(prefix.previousHierarchy()), self.target.getHierarchicalName(prefix), self.localPriority+extEdge.localPriority);
+
+--- Creates and returns an edge from a vertex correspoding to a CallBehaviorAction to a vertex correspoding to an OutPort
+--- Inputs: 
+--- Edge vertex (context) corresponds to the connection between an OutPort and an internal vertex of the CallBehaviorAction ( one deeper hierarchial level)
+--- Edge vertex (extEdge) corresponds to the connection between an OutPort and a CallBehaviorAction at the currect hierarchical level
+--- Flatted Graph (fGraph), which contains the source vertex and target vertex of the output edge
+--- Prefix is a string that contains the names of higher hierarchies (name of CallBehaviorAction separated with ;)	
+helper context GraphMetaM!Edge def: getFlatActivityOutEdge (hGraph: GraphMetaM!Graph, fGraph: GraphMetaM!Graph, extEdge: GraphMetaM!Edge, prefix: String) : GraphMetaM!Edge =
+	thisModule.Edge(fGraph, self.source.getHierarchicalName(prefix),  extEdge.target.getHierarchicalName(prefix.previousHierarchy()), self.localPriority+extEdge.localPriority);
+
+
+--- Returns all hiearchical levels excepting the current level (last added)
+helper context String def: previousHierarchy(): String =
+	let currentH : String = self.substring(1,self.size()-1) in
+	if not currentH.contains('::') then
+		-- There is not hierarchical levels
+		''
+	else 
+		-- The last added level is removed
+		currentH.substring(1,  currentH.lastIndexOf('::'))+'::'
+	endif;
+	
+
+--- Returns the name of the input vertex taking into account the hierachical levels given by the prefix (+;)
+--- The name is: hierarchy + '::' + name excepting for :
+--- Events:  name
+--- inPort, outPort : hierarchy  + name
+helper context  GraphMetaM!Vertex  def: getHierarchicalName(prefix: String) : String =
+	let name : String = self.name in
+	(if name.contains('_Event') or name.startsWith('inPort')  or name.startsWith('outPort') then
+			if name.contains('_Event') then
+				-- Connected to an Event
+				name
+			else
+				-- Connected to an in ActivityParameterNode
+				prefix.substring(1, prefix.size()-2)+ name
+			endif
+		else
+			prefix + name
+		endif);
+
+--- Creates and returns edges that connect the management of all events within the input graph
+--- Edge: source: _Event+name+In, target: _Event+name+Out
+helper context GraphMetaM!Graph def: getInternalEventEdge () : Set(GraphMetaM!Edge) =
+	self.vertex->select(v | v.name.startsWith('_Event') and v.name.endsWith('In'))
+			->select(inEvent | self.vertex
+				->exists( outEvent | outEvent.name = inEvent.name.substring(1, inEvent.name.size()-2)+'Out'))
+			->collect(inEvent | thisModule.Edge(
+				self,
+				(inEvent.name),
+				(inEvent.name.substring(1, inEvent.name.size()-2)+'Out'),
+				
+				0		
+			));
+
+--- Returns true if the input string is contained by the called string
+helper context String def: contains(string: String) : Boolean =
+	if self.indexOf(string)< 0 then
+		false
+	else
+		true
+	endif;

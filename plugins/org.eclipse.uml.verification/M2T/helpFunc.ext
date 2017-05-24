@@ -1,0 +1,75 @@
+import GraphMetaM;
+
+boolean print(String text) : JAVA JavaXtend.helpModelChecking.print(java.lang.String);
+String getID() : JAVA JavaXtend.helpModelChecking.getID();
+
+List[Integer] getInAndList(): JAVA JavaXtend.helpModelChecking.getInAndList();
+List[Integer] getInOrList(): JAVA JavaXtend.helpModelChecking.getInOrList();
+List[Integer] getOutAndList(): JAVA JavaXtend.helpModelChecking.getOutAndList();
+List[Integer] getOutOrList(): JAVA JavaXtend.helpModelChecking.getOutOrList();
+
+boolean setOutputList(List[Integer] andList, List[Integer] orList): JAVA JavaXtend.helpModelChecking.setOutputList(java.util.List, java.util.List);
+boolean setInputList(List[Integer] andList, List[Integer] orList): JAVA JavaXtend.helpModelChecking.setInputList(java.util.List, java.util.List);
+List[Integer] getIncreasingList(Integer size): JAVA JavaXtend.helpModelChecking.getIncreasingList(java.lang.Integer);
+
+boolean setOffsetJava(Integer offset): JAVA JavaXtend.helpModelChecking.setOffset(java.lang.Integer);
+Integer getOffset(): JAVA JavaXtend.helpModelChecking.getOffset();
+
+boolean resetInput(): JAVA JavaXtend.helpModelChecking.resetInput();
+boolean resetOutput(): JAVA JavaXtend.helpModelChecking.resetOutput();
+boolean addInput(String vertex): JAVA JavaXtend.helpModelChecking.addInput(java.lang.String);
+boolean addOutput(String vertex): JAVA JavaXtend.helpModelChecking.addOutput(java.lang.String);
+List[String] getInput(): JAVA JavaXtend.helpModelChecking.getInput();
+List[String] getOutput(): JAVA JavaXtend.helpModelChecking.getOutput();
+
+Integer getGCD (): JAVA JavaXtend.helpModelChecking.getGCD();
+Integer getclockSize (List[Integer] cycles): JAVA JavaXtend.helpModelChecking.getclockSize(java.util.List);
+boolean calculateGCD (List[Integer] cycles): JAVA JavaXtend.helpModelChecking.calculateGCD(java.util.List);
+	
+setOffset(Integer offset):
+	setOffsetJava(offset.toString().asInteger());
+
+Integer getOutSize():
+	getOutAndList().size+getOutOrList().size;
+
+Integer getInSize():
+	getInAndList().size+getInOrList().size;
+
+
+Integer IncomingSize(Vertex v):
+	v.incoming.getValidEdge().size;
+
+Integer OutgoingSize(Vertex v):
+	v.outgoing.getValidEdge().size;
+
+String printOut(Vertex v):
+	v.rName+"::"+v.outgoing.getValidEdge().size.toString();
+	
+String printIn(Vertex v):
+	v.rName+"::"+v.incoming.getValidEdge().size.toString();
+	
+
+Integer getIndexOut(Graph this, Vertex v):
+	vertex.getValidVertex().select(e|e==vertex.getValidVertex().selectFirst(x|x.outgoing.getValidEdge().size==e.outgoing.getValidEdge().size)).indexOf(vertex.getValidVertex().selectFirst(e|e.outgoing.getValidEdge().size==v.outgoing.getValidEdge().size))*4;
+	
+Integer getIndexIn(Graph this, Vertex v):
+	vertex.getValidVertex().select(e|e==vertex.getValidVertex().selectFirst(x|x.outgoing.getValidEdge().size==e.outgoing.getValidEdge().size)).size*4+vertex.getValidVertex().select(e|e==vertex.getValidVertex().selectFirst(x|x.incoming.getValidEdge().size==e.incoming.getValidEdge().size)).indexOf(vertex.getValidVertex().selectFirst(e|e.incoming.getValidEdge().size==v.incoming.getValidEdge().size))*3-(vertex.getValidVertex().select(e|e.incoming.getValidEdge().isEmpty && !e.rName.matches("id0")).isEmpty?3:0);
+	
+Integer getIndexRoot(Graph this):
+	getOutSize()*4+getInSize()*3;
+	
+List[Vertex] getValidVertex (List[Vertex] vertex):
+	vertex.select(e|e.rName.contains("id"));
+	
+List[Edge] getValidEdge (List[Edge] edges):
+	edges.select(e|e.localPriority!=-1);
+
+	
+String getEgdeName():
+	getID().replaceAll("id","edge");
+	
+	
+Integer getPESpriority(Edge e):
+	e.source.type.toString()=="or" ?
+		1 
+		: e.source.outgoing.sortBy(o|o.localPriority).indexOf(e)+1;	

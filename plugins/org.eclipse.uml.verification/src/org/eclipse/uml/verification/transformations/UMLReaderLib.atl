@@ -1,0 +1,9 @@
+library UMLReaderLib;
+
+-- Returns true if the element (context) has the stereotype
+helper context UML!Element def: hasStereotype(stereotype : String) : Boolean =
+self.getAppliedStereotypes()->exists(e|e.name=stereotype);
+
+-- Returns the stereotype applied to the element (context) with the input name
+helper context UML!Element def: getStereotype(stereotype : String) : UML!Stereotype =
+self.getAppliedStereotypes()->any(e|e.name=stereotype);

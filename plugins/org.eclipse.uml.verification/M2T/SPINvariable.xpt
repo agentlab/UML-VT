@@ -1,0 +1,110 @@
+«IMPORT GraphMetaM»
+«EXTENSION M2T::helpFunc»
+
+
+
+«DEFINE main FOR Model»
+   «EXPAND SPINvariable FOREACH this.graph »
+
+«ENDDEFINE»
+
+«REM» 
+---------------------------------------------------------------------------------------------------------------
+	Translation into SPIN models from UML activities (extended by the DMOSES profile)
+	The transformation is based on a distributed strategie using variables for comunication between nodes
+	Input: graph (activity)
+	Output: one pml-file for each graph (activity) in the model
+---------------------------------------------------------------------------------------------------------------
+«ENDREM»
+«DEFINE SPINvariable FOR Graph-»
+«FILE name +  ".pml"-»
+
+
+«FOREACH vertex.getValidVertex() AS v-»
+byte in_«v.rName»;
+bool endF_«v.rName»;
+«ENDFOREACH»
+
+bool exeId;
+int clock =0;
+int exeTime_P1 = 0;
+
+proctype time()
+{
+	idle: atomic{
+		timeout && exeTime_P1 != 0 -> d_step{clock = clock + exeTime_P1; exeTime_P1=0;}
+		}
+		goto idle;	
+}
+«REM» 
+------------------------------------------------------------------------
+	Node's behavior : Invocation, execution and firing 
+	Connection between node is done by channels
+------------------------------------------------------------------------
+«ENDREM»
+«FOREACH vertex.getValidVertex() AS v-»
+ proctype «v.rName» () 
+{ 
+	idle: 
+	 in_«v.rName» >= «IF v.incoming.getValidEdge().isEmpty || v.type.toString()=="or"»1«ELSE»«v.incoming.getValidEdge().size»«ENDIF»;
+
+	 exeTime_P1 = «v.cycles»;
+	 exeTime_P1 == 0;
+	
+	 «IF v.type.toString()=="and"-»
+	«FOREACH v.outgoing.getValidEdge() AS p-»
+	 firing_p«v.outgoing.getValidEdge().indexOf(p)»:
+	 	if 
+	 	:: 	in_«p.target.rName» == «IF  p.target.type.toString()=="or"»0«ELSE»«p.target.incoming.getValidEdge().size-1»«ENDIF» -> in_«p.target.rName» = in_«p.target.rName» + 1; 
+	 	::  else -> in_«p.target.rName» = in_«p.target.rName» + 1; goto «IF p==v.outgoing.getValidEdge().last()»end«ELSE»firing_p«v.outgoing.getValidEdge().indexOf(p)+1»«ENDIF»
+	 	fi;
+	 		endF_«p.target.rName» == 1 -> endF_«p.target.rName» = 0;
+	 		
+	«ENDFOREACH-»
+	«ELSE-»
+	«IF !v.outgoing.getValidEdge().isEmpty-»
+	if
+	«FOREACH v.outgoing.getValidEdge().sortBy(e|e.localPriority) AS p-»
+	:: skip -> goto firing_p«v.outgoing.getValidEdge().indexOf(p)»;
+	«ENDFOREACH»
+	fi;
+	«ENDIF-»
+	«FOREACH v.outgoing.getValidEdge().sortBy(e|e.localPriority)  AS p»
+	firing_p«v.outgoing.getValidEdge().indexOf(p)»:
+		if 
+	 	:: 	in_«p.target.rName» == «IF  p.target.type.toString()=="or"»0«ELSE»«p.target.incoming.getValidEdge().size-1»«ENDIF» -> in_«p.target.rName» = in_«p.target.rName» + 1; 
+	 	::  else -> in_«p.target.rName» = in_«p.target.rName» + 1; goto end;
+	 	fi;
+	 	endF_«p.target.rName» == 1 -> endF_«p.target.rName» = 0;
+	 	goto end;
+	«ENDFOREACH»	
+	
+	«ENDIF»
+	 	  
+	end:
+		if 
+		:: in_«v.rName» >= «IF v.incoming.getValidEdge().isEmpty || v.type.toString()=="or"»2«ELSE»«v.incoming.getValidEdge().size+1»«ENDIF» -> in_«v.rName» = in_«v.rName» - «IF v.incoming.getValidEdge().isEmpty || v.type.toString()=="or"»1«ELSE»«v.incoming.getValidEdge().size»«ENDIF»; 
+		:: else -> d_step{  endF_«v.rName» = 1; in_«v.rName» = in_«v.rName» - «IF v.incoming.getValidEdge().isEmpty || v.type.toString()=="or"»1«ELSE»«v.incoming.getValidEdge().size»«ENDIF»; }
+		fi;
+		
+		goto idle;
+	 		 		
+}
+«ENDFOREACH»
+
+init{
+	atomic
+	{
+		run time();
+		«FOREACH vertex.getValidVertex() AS v-»
+		run «v.rName»() ;
+		«ENDFOREACH»
+		in_id0 = 1;
+	}
+}
+
+
+
+
+«ENDFILE»
+«ENDDEFINE»

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Profile xmi:version="20131001" xmlns:xmi="http://www.omg.org/spec/XMI/20131001" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:uml="http://www.eclipse.org/uml2/5.0.0/UML" xmi:id="_16_5_1_45101b7_1243436710992_207621_553" name="Hardware Management" metamodelReference="_16_5_1_45101b7_1243436710992_207621_553_packageImportcreatedOnLoad">
+  <eAnnotations xmi:id="_PyMypSS1EeWh3dTrlDL-RQ" source="http://www.eclipse.org/uml2/2.0.0/UML">
+    <contents xmi:type="ecore:EPackage" xmi:id="_PyMypiS1EeWh3dTrlDL-RQ" name="HardwareManagement" nsURI="http:///schemas/HardwareManagement/_Px53sCS1EeWh3dTrlDL-RQ/0" nsPrefix="HardwareManagement">
+      <eClassifiers xmi:type="ecore:EClass" xmi:id="_PyMypyS1EeWh3dTrlDL-RQ" name="resource">
+        <eAnnotations xmi:id="_PyMyqCS1EeWh3dTrlDL-RQ" source="http://www.eclipse.org/uml2/2.0.0/UML" references="_16_5_1_45101b7_1243436772941_13364_629"/>
+        <eStructuralFeatures xmi:type="ecore:EReference" xmi:id="_PyMyqSS1EeWh3dTrlDL-RQ" name="base_Action" ordered="false" lowerBound="1">
+          <eType xmi:type="ecore:EClass" href="http://www.eclipse.org/uml2/5.0.0/UML#//Action"/>
+        </eStructuralFeatures>
+        <eStructuralFeatures xmi:type="ecore:EReference" xmi:id="_PyMyqiS1EeWh3dTrlDL-RQ" name="base_Activity" ordered="false" lowerBound="1">
+          <eType xmi:type="ecore:EClass" href="http://www.eclipse.org/uml2/5.0.0/UML#//Activity"/>
+        </eStructuralFeatures>
+        <eStructuralFeatures xmi:type="ecore:EReference" xmi:id="_PyMyqyS1EeWh3dTrlDL-RQ" name="base_StateMachine" ordered="false" lowerBound="1">
+          <eType xmi:type="ecore:EClass" href="http://www.eclipse.org/uml2/5.0.0/UML#//StateMachine"/>
+        </eStructuralFeatures>
+        <eStructuralFeatures xmi:type="ecore:EReference" xmi:id="_PyMyrCS1EeWh3dTrlDL-RQ" name="platform" ordered="false" lowerBound="1">
+          <eType xmi:type="ecore:EClass" href="http://www.eclipse.org/uml2/5.0.0/UML#//InstanceSpecification"/>
+        </eStructuralFeatures>
+      </eClassifiers>
+      <eClassifiers xmi:type="ecore:EClass" xmi:id="_PyMyrSS1EeWh3dTrlDL-RQ" name="default">
+        <eAnnotations xmi:id="_PyMyriS1EeWh3dTrlDL-RQ" source="http://www.eclipse.org/uml2/2.0.0/UML" references="_16_5_1_45101b7_1243436841286_794030_696"/>
+        <eStructuralFeatures xmi:type="ecore:EReference" xmi:id="_PyMyryS1EeWh3dTrlDL-RQ" name="base_InstanceSpecification" ordered="false" lowerBound="1">
+          <eType xmi:type="ecore:EClass" href="http://www.eclipse.org/uml2/5.0.0/UML#//InstanceSpecification"/>
+        </eStructuralFeatures>
+      </eClassifiers>
+      <eClassifiers xmi:type="ecore:EClass" xmi:id="_PyMysCS1EeWh3dTrlDL-RQ" name="uBIC">
+        <eAnnotations xmi:id="_PyMysSS1EeWh3dTrlDL-RQ" source="http://www.eclipse.org/uml2/2.0.0/UML" references="_17_0_45101b7_1296571821294_435704_3588"/>
+        <eStructuralFeatures xmi:type="ecore:EReference" xmi:id="_PyMysiS1EeWh3dTrlDL-RQ" name="base_Signal" ordered="false" lowerBound="1">
+          <eType xmi:type="ecore:EClass" href="http://www.eclipse.org/uml2/5.0.0/UML#//Signal"/>
+        </eStructuralFeatures>
+        <eStructuralFeatures xmi:type="ecore:EReference" xmi:id="_PyMysyS1EeWh3dTrlDL-RQ" name="board" ordered="false" lowerBound="1">
+          <eType xmi:type="ecore:EClass" href="http://www.eclipse.org/uml2/5.0.0/UML#//Node"/>
+        </eStructuralFeatures>
+        <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="_PyMytCS1EeWh3dTrlDL-RQ" name="ID" ordered="false" lowerBound="1">
+          <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+        </eStructuralFeatures>
+        <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="_PyMytSS1EeWh3dTrlDL-RQ" name="type" ordered="false" lowerBound="1">
+          <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+        </eStructuralFeatures>
+      </eClassifiers>
+    </contents>
+  </eAnnotations>
+  <packageImport xmi:id="_16_5_1_45101b7_1243436710992_207621_553_packageImportcreatedOnLoad">
+    <importedPackage xmi:type="uml:Model" href="pathmap://UML_METAMODELS/UML.metamodel.uml#_0"/>
+  </packageImport>
+  <packageImport xmi:id="_0primitiveTypesHardware_Management">
+    <importedPackage xmi:type="uml:Model" href="pathmap://UML_LIBRARIES/UMLPrimitiveTypes.library.uml#_0"/>
+  </packageImport>
+  <packageImport xmi:id="_0javaPrimitiveTypesHardware_Management">
+    <importedPackage xmi:type="uml:Model" href="pathmap://UML_LIBRARIES/JavaPrimitiveTypes.library.uml#_0"/>
+  </packageImport>
+  <packagedElement xmi:type="uml:Stereotype" xmi:id="_16_5_1_45101b7_1243436772941_13364_629" name="resource">
+    <ownedAttribute xmi:id="_16_5_1_45101b7_1243436777726_275082_631" name="base_Action" visibility="private" association="_16_5_1_45101b7_1243436777726_941463_630">
+      <type xmi:type="uml:Class" href="pathmap://UML_METAMODELS/UML.metamodel.uml#Action"/>
+    </ownedAttribute>
+    <ownedAttribute xmi:id="_16_5_1_45101b7_1243436798428_918437_662" name="base_Activity" visibility="private">
+      <type xmi:type="uml:Class" href="pathmap://UML_METAMODELS/UML.metamodel.uml#Activity"/>
+      <association xmi:type="uml:Extension" href="DMOSESprofile.profile.uml#_16_5_1_45101b7_1243436798428_565282_661"/>
+    </ownedAttribute>
+    <ownedAttribute xmi:id="_16_5_1_45101b7_1243436808873_390778_680" name="base_StateMachine" visibility="private">
+      <type xmi:type="uml:Class" href="pathmap://UML_METAMODELS/UML.metamodel.uml#StateMachine"/>
+      <association xmi:type="uml:Extension" href="DMOSESprofile.profile.uml#_16_5_1_45101b7_1243436808873_478103_679"/>
+    </ownedAttribute>
+    <ownedAttribute xmi:id="_16_5_1_ba202f6_1256641396322_374924_356" name="platform" visibility="public">
+      <type xmi:type="uml:Class" href="pathmap://UML_METAMODELS/UML.metamodel.uml#InstanceSpecification"/>
+    </ownedAttribute>
+  </packagedElement>
+  <packagedElement xmi:type="uml:Extension" xmi:id="_16_5_1_45101b7_1243436777726_941463_630" name="" memberEnd="_16_5_1_45101b7_1243436777726_626311_632 _16_5_1_45101b7_1243436777726_275082_631" navigableOwnedEnd="_16_5_1_45101b7_1243436777726_626311_632">
+    <ownedEnd xmi:type="uml:ExtensionEnd" xmi:id="_16_5_1_45101b7_1243436777726_626311_632" name="extension_" visibility="private" type="_16_5_1_45101b7_1243436772941_13364_629" aggregation="composite" association="_16_5_1_45101b7_1243436777726_941463_630">
+      <lowerValue xmi:type="uml:LiteralInteger" xmi:id="_16_5_1_45101b7_1243436777726_246905_633" name=""/>
+      <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="_16_5_1_45101b7_1243436777726_327800_634" name="" value="1"/>
+    </ownedEnd>
+  </packagedElement>
+  <packagedElement xmi:type="uml:Stereotype" xmi:id="_16_5_1_45101b7_1243436841286_794030_696" name="default">
+    <ownedAttribute xmi:id="_16_5_1_ba202f6_1256641381092_306781_352" name="base_InstanceSpecification" visibility="private" association="_16_5_1_ba202f6_1256641381092_578733_351">
+      <type xmi:type="uml:Class" href="pathmap://UML_METAMODELS/UML.metamodel.uml#InstanceSpecification"/>
+    </ownedAttribute>
+  </packagedElement>
+  <packagedElement xmi:type="uml:Extension" xmi:id="_16_5_1_ba202f6_1256641381092_578733_351" name="" memberEnd="_16_5_1_ba202f6_1256641381092_257624_353 _16_5_1_ba202f6_1256641381092_306781_352" navigableOwnedEnd="_16_5_1_ba202f6_1256641381092_257624_353">
+    <ownedEnd xmi:type="uml:ExtensionEnd" xmi:id="_16_5_1_ba202f6_1256641381092_257624_353" name="extension_default" visibility="private" type="_16_5_1_45101b7_1243436841286_794030_696" aggregation="composite" association="_16_5_1_ba202f6_1256641381092_578733_351">
+      <lowerValue xmi:type="uml:LiteralInteger" xmi:id="_16_5_1_ba202f6_1256641381092_269665_354" name=""/>
+      <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="_16_5_1_ba202f6_1256641381092_598656_355" name="" value="1"/>
+    </ownedEnd>
+  </packagedElement>
+  <packagedElement xmi:type="uml:Stereotype" xmi:id="_17_0_45101b7_1296571821294_435704_3588" name="uBIC">
+    <ownedAttribute xmi:id="_17_0_45101b7_1296571828176_261411_3590" name="base_Signal" visibility="private" association="_17_0_45101b7_1296571828176_551862_3589">
+      <type xmi:type="uml:Class" href="pathmap://UML_METAMODELS/UML.metamodel.uml#Signal"/>
+    </ownedAttribute>
+    <ownedAttribute xmi:id="_17_0_45101b7_1296571854242_819755_3613" name="board" visibility="public">
+      <type xmi:type="uml:Class" href="pathmap://UML_METAMODELS/UML.metamodel.uml#Node"/>
+    </ownedAttribute>
+    <ownedAttribute xmi:id="_17_0_45101b7_1296572585490_714770_4565" name="ID" visibility="public">
+      <type xmi:type="uml:PrimitiveType" href="pathmap://UML_LIBRARIES/JavaPrimitiveTypes.library.uml#int"/>
+    </ownedAttribute>
+    <ownedAttribute xmi:id="_17_0_ba202f6_1297155264815_893909_1578" name="type" visibility="public">
+      <type xmi:type="uml:PrimitiveType" href="pathmap://UML_LIBRARIES/JavaPrimitiveTypes.library.uml#int"/>
+    </ownedAttribute>
+  </packagedElement>
+  <packagedElement xmi:type="uml:Extension" xmi:id="_17_0_45101b7_1296571828176_551862_3589" name="" memberEnd="_17_0_45101b7_1296571828176_475878_3591 _17_0_45101b7_1296571828176_261411_3590" navigableOwnedEnd="_17_0_45101b7_1296571828176_475878_3591">
+    <ownedEnd xmi:type="uml:ExtensionEnd" xmi:id="_17_0_45101b7_1296571828176_475878_3591" name="extension_" visibility="private" type="_17_0_45101b7_1296571821294_435704_3588" aggregation="composite" association="_17_0_45101b7_1296571828176_551862_3589">
+      <lowerValue xmi:type="uml:LiteralInteger" xmi:id="_17_0_45101b7_1296571828176_832764_3592" name=""/>
+      <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="_17_0_45101b7_1296571828176_580647_3593" name="" value="1"/>
+    </ownedEnd>
+  </packagedElement>
+</uml:Profile>
